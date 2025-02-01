@@ -27,7 +27,8 @@ import (
 type appStorageFactory struct {
 	bboltParams ParamsType
 	iTime       coreutils.ITime
-	cancelFunc  context.CancelFunc
+	ctx         context.Context
+	cancel      context.CancelFunc
 	wg          *sync.WaitGroup
 }
 
@@ -51,13 +52,10 @@ func (p *appStorageFactory) AppStorage(appName istorage.SafeAppName) (s istorage
 		return nil, err
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	p.cancelFunc = cancel
-	p.wg = &sync.WaitGroup{}
-	impl := &appStorageType{db: db, iTime: p.iTime, ctx: ctx}
+	impl := &appStorageType{db: db, iTime: p.iTime}
 	// start background cleaner
 	p.wg.Add(1)
-	go impl.backgroundCleaner(p.wg)
+	go impl.backgroundCleaner(p.ctx, p.wg)
 
 	return impl, nil
 }
@@ -94,7 +92,7 @@ func (p *appStorageFactory) Time() coreutils.ITime {
 }
 
 func (p *appStorageFactory) StopGoroutines() {
-	p.cancelFunc()
+	p.cancel()
 	p.wg.Wait()
 }
 
@@ -118,7 +116,6 @@ func unSafeKey(value []byte) []byte {
 type appStorageType struct {
 	db    *bolt.DB
 	iTime coreutils.ITime
-	ctx   context.Context
 }
 
 //nolint:revive
@@ -556,13 +553,13 @@ func (s *appStorageType) removeKey(tx *bolt.Tx, ttlKey []byte) error {
 	return ttlBucket.Delete(ttlKey)
 }
 
-func (s *appStorageType) backgroundCleaner(wg *sync.WaitGroup) {
+func (s *appStorageType) backgroundCleaner(ctx context.Context, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	for s.ctx.Err() == nil {
+	for ctx.Err() == nil {
 		timerCh := s.iTime.NewTimerChan(cleanupInterval)
 		select {
-		case <-s.ctx.Done():
+		case <-ctx.Done():
 			return
 		case <-timerCh:
 			err := s.db.Update(func(tx *bolt.Tx) error {
@@ -573,7 +570,7 @@ func (s *appStorageType) backgroundCleaner(wg *sync.WaitGroup) {
 
 				cr := ttlBucket.Cursor()
 				k, _ := cr.First()
-				for k != nil && s.ctx.Err() == nil {
+				for k != nil && ctx.Err() == nil {
 					// extract expireAt from the key and check if it is expired
 					expireAt := time.UnixMilli(int64(binary.BigEndian.Uint64(k[:utils.Uint64Size]))) //nolint: gosec
 					if expireAt.After(s.iTime.Now()) {

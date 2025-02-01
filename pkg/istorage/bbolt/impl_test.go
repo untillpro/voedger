@@ -134,3 +134,24 @@ func cleanupTestData(params ParamsType) {
 		params.DBDir = ""
 	}
 }
+
+func TestAppStorageFactory_StopGoroutines(t *testing.T) {
+	require := require.New(t)
+
+	params := prepareTestData()
+	defer cleanupTestData(params)
+
+	factory := Provide(params, coreutils.MockTime)
+	storageProvider := istorageimpl.Provide(factory)
+
+	_, err := storageProvider.AppStorage(istructs.AppQName_test1_app1)
+	require.NoError(err)
+
+	storageProvider.Stop()
+
+	implFactory := factory.(*appStorageFactory)
+	require.Error(implFactory.ctx.Err())
+
+	_, err = storageProvider.AppStorage(istructs.AppQName_test1_app1)
+	require.ErrorIs(err, istorageimpl.ErrStoppingState)
+}

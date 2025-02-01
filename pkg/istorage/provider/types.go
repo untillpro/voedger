@@ -16,5 +16,6 @@ type implIAppStorageProvider struct {
 	asf         istorage.IAppStorageFactory
 	lock        sync.Mutex
 	metaStorage istorage.IAppStorage
-	suffix      string // used in tests only
+	suffix      string // used in tests only (ITs in 2 packages are run simultaneously on the same config -> e.g. on CreateLogin: login exists already)
+	isStopping  bool
 }

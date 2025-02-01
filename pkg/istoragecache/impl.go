@@ -53,6 +53,18 @@ type implCachingAppStorageProvider struct {
 	iTime           coreutils.ITime
 }
 
+func (asp *implCachingAppStorageProvider) Prepare(work any) error {
+	return asp.storageProvider.Prepare(work)
+}
+
+func (asp *implCachingAppStorageProvider) Run(ctx context.Context) {
+	asp.storageProvider.Run(ctx)
+}
+
+func (asp *implCachingAppStorageProvider) Stop() {
+	asp.storageProvider.Stop()
+}
+
 // normally must be called once per app
 // Currently is called once in appStructsProviderType.Builtin() on VVMAppsBuilder.BuildAppsArtefacts() stage
 func (asp *implCachingAppStorageProvider) AppStorage(appQName appdef.AppQName) (istorage.IAppStorage, error) {
@@ -353,4 +365,3 @@ func makeKey(pKey []byte, cCols []byte) (res []byte) {
 	res = append(res, cCols...)
 	return res
 }
-

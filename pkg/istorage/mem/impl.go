@@ -42,6 +42,8 @@ func (s *appStorageFactory) Time() coreutils.ITime {
 	return s.iTime
 }
 
+func (s *appStorageFactory) StopGoroutines() {}
+
 type appStorage struct {
 	storage      map[string]map[string]coreutils.DataWithExpiration
 	lock         sync.RWMutex

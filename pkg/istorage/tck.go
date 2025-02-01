@@ -24,6 +24,7 @@ func TechnologyCompatibilityKit(t *testing.T, storageFactory IAppStorageFactory)
 	testAppQName := appdef.NewAppQName("tcktest", uuid.NewString())
 	storage := testAppStorageFactory(t, storageFactory, testAppQName)
 	TechnologyCompatibilityKit_Storage(t, storage, storageFactory.Time())
+	storageFactory.StopGoroutines()
 }
 
 // need to test e.g. istoragecache

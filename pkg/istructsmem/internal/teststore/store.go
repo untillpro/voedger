@@ -72,6 +72,12 @@ func (s *TestMemStorage) TTLRead(ctx context.Context, pKey []byte, startCCols, f
 	panic("implement me")
 }
 
+func (tsp testStorageProvider) Prepare(_ any) error { return nil }
+
+func (tsp testStorageProvider) Run(_ context.Context) {}
+
+func (tsp testStorageProvider) Stop() {}
+
 func (tsp testStorageProvider) AppStorage(appName appdef.AppQName) (structs istorage.IAppStorage, err error) {
 	if s, ok := tsp.testStorage[appName]; ok {
 		return s, nil

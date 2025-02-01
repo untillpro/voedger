@@ -67,6 +67,8 @@ func (d implIAppStorageFactory) Time() coreutils.ITime {
 	return d.iTime
 }
 
+func (d implIAppStorageFactory) StopGoroutines() { return }
+
 func (s *implIAppStorage) InsertIfNotExists(pKey []byte, cCols []byte, value []byte, ttlSeconds int) (ok bool, err error) {
 	found := false
 	response, err := s.getItem(pKey, cCols, ttlSeconds > 0)

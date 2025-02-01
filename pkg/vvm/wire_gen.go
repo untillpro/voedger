@@ -211,7 +211,7 @@ func ProvideCluster(vvmCtx context.Context, vvmConfig *VVMConfig, vvmIdx VVMIdxT
 	metricsService := metrics.ProvideMetricsService(vvmCtx, metricsServicePort, iMetrics)
 	metricsServiceOperator := provideMetricsServiceOperator(metricsService)
 	publicEndpointServiceOperator := providePublicEndpointServiceOperator(routerServices, metricsServiceOperator)
-	servicePipeline := provideServicePipeline(vvmCtx, operatorCommandProcessors, operatorQueryProcessors, operatorBLOBProcessors, iActualizersService, iAppPartsCtlPipelineService, bootstrapOperator, adminEndpointServiceOperator, publicEndpointServiceOperator)
+	servicePipeline := provideServicePipeline(vvmCtx, operatorCommandProcessors, operatorQueryProcessors, operatorBLOBProcessors, iActualizersService, iAppPartsCtlPipelineService, bootstrapOperator, adminEndpointServiceOperator, publicEndpointServiceOperator, iAppStorageProvider)
 	v9 := provideMetricsServicePortGetter(metricsService)
 	v10 := provideBuiltInAppPackages(builtInAppsArtefacts)
 	vvm := &VVM{
@@ -851,7 +851,7 @@ func provideServicePipeline(
 	bootstrapSyncOp BootstrapOperator,
 	adminEndpoint AdminEndpointServiceOperator,
 	publicEndpoint PublicEndpointServiceOperator,
+	appStorageProvider istorage.IAppStorageProvider,
 ) ServicePipeline {
-	return pipeline.NewSyncPipeline(vvmCtx, "ServicePipeline", pipeline.WireSyncOperator("internal services", pipeline.ForkOperator(pipeline.ForkSame, pipeline.ForkBranch(opQueryProcessors), pipeline.ForkBranch(opCommandProcessors), pipeline.ForkBranch(opBLOBProcessors), pipeline.ForkBranch(pipeline.ServiceOperator(opAsyncActualizers)), pipeline.ForkBranch(pipeline.ServiceOperator(appPartsCtl)))), pipeline.WireSyncOperator("admin endpoint", adminEndpoint), pipeline.WireSyncOperator("bootstrap", bootstrapSyncOp), pipeline.WireSyncOperator("public endpoint", publicEndpoint),
-	)
+	return pipeline.NewSyncPipeline(vvmCtx, "ServicePipeline", pipeline.WireSyncOperator("internal services", pipeline.ForkOperator(pipeline.ForkSame, pipeline.ForkBranch(opQueryProcessors), pipeline.ForkBranch(opCommandProcessors), pipeline.ForkBranch(opBLOBProcessors), pipeline.ForkBranch(pipeline.ServiceOperator(opAsyncActualizers)), pipeline.ForkBranch(pipeline.ServiceOperator(appPartsCtl)), pipeline.ForkBranch(pipeline.ServiceOperator(appStorageProvider)))), pipeline.WireSyncOperator("admin endpoint", adminEndpoint), pipeline.WireSyncOperator("bootstrap", bootstrapSyncOp), pipeline.WireSyncOperator("public endpoint", publicEndpoint))
 }

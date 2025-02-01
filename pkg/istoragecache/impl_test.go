@@ -397,6 +397,12 @@ type testStorageProvider struct {
 	appStorageGetError error
 }
 
+func (sp *testStorageProvider) Prepare(_ any) error { return nil }
+
+func (sp *testStorageProvider) Run(_ context.Context) {}
+
+func (sp *testStorageProvider) Stop() {}
+
 func (sp *testStorageProvider) AppStorage(appdef.AppQName) (istorage.IAppStorage, error) {
 	if sp.appStorageGetError != nil {
 		return nil, sp.appStorageGetError

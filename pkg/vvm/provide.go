@@ -798,6 +798,7 @@ func provideServicePipeline(
 	bootstrapSyncOp BootstrapOperator,
 	adminEndpoint AdminEndpointServiceOperator,
 	publicEndpoint PublicEndpointServiceOperator,
+	appStorageProvider istorage.IAppStorageProvider,
 ) ServicePipeline {
 	return pipeline.NewSyncPipeline(vvmCtx, "ServicePipeline",
 		pipeline.WireSyncOperator("internal services", pipeline.ForkOperator(pipeline.ForkSame,
@@ -806,6 +807,7 @@ func provideServicePipeline(
 			pipeline.ForkBranch(opBLOBProcessors),
 			pipeline.ForkBranch(pipeline.ServiceOperator(opAsyncActualizers)),
 			pipeline.ForkBranch(pipeline.ServiceOperator(appPartsCtl)),
+			pipeline.ForkBranch(pipeline.ServiceOperator(appStorageProvider)),
 		)),
 		pipeline.WireSyncOperator("admin endpoint", adminEndpoint),
 		pipeline.WireSyncOperator("bootstrap", bootstrapSyncOp),
