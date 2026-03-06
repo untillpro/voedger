@@ -32,15 +32,15 @@ flowchart TB
     extensions["🎯 extensions<br/>WASM runtime"]:::S
     auth["🎯 auth<br/>Authentication & authorization"]:::S
     routing["🎯 routing<br/>Request routing"]:::S
-    monitoring["🎯 monitoring<br/>Metrics & observability"]:::S
+    observability["🎯 observability<br/>Metrics & insights"]:::S
 
     storage -->|"Persist events & state<br/>Retrieve data (CQRS)"| apps
     extensions -->|"Execute WASM extensions<br/>Manage extension state"| apps
     auth -->|"Validate permissions<br/>Enforce access policies"| apps
     apps -->|"Resolve requests<br/>Discover endpoints"| routing
     auth -->|"Authenticate requests<br/>Validate JWT tokens"| routing
-    storage -->|"Performance metrics<br/>Capacity tracking"| monitoring
-    apps -->|"Performance metrics<br/>Workspace statistics"| monitoring
+    storage -->|"Performance metrics<br/>Capacity tracking"| observability
+    apps -->|"Performance metrics<br/>Workspace statistics"| observability
     auth -->|"Security context<br/>Access policies"| extensions
 
     classDef S fill:#B5FFFF,color:#333
@@ -63,10 +63,10 @@ Detailed relationships between contexts:
 - 🎯auth -> |supplier-customer| 🎯routing
   - Authenticate incoming requests
   - Validate JWT tokens
-- 🎯storage -> |supplier-customer| 🎯monitoring
+- 🎯storage -> |supplier-customer| 🎯observability
   - Provide storage performance and health metrics
   - Track storage capacity and usage
-- 🎯apps -> |supplier-customer| 🎯monitoring
+- 🎯apps -> |supplier-customer| 🎯observability
   - Collect application performance metrics
   - Track workspace and partition statistics
 - 🎯auth -> |supplier-customer| 🎯extensions
@@ -123,13 +123,13 @@ Authentication, authorization, and token management.
 
 WASM extension runtime and lifecycle management.
 
-### monitoring
+### observability
 
-System metrics, application monitoring, and observability.
+System metrics, logs, traces, and insights for understanding system behavior and performance.
 
 Relationships with external actors:
 
-- 🎯monitoring -> |supplier-customer| 👤Admin
-  - Access monitoring dashboards
-  - View system metrics and logs
+- 🎯observability -> |supplier-customer| 👤Admin
+  - Access observability dashboards
+  - View system metrics, logs, and traces
   - Configure alerts and thresholds
