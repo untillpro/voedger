@@ -26,4 +26,3 @@ Requirements:
 
 - Issue URL: https://untill.atlassian.net/browse/AIR-3236
 - Parent Issue: https://untill.atlassian.net/browse/AIR-3053
-

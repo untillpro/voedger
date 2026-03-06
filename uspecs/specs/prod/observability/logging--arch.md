@@ -95,4 +95,3 @@ Predefined standard attributes includes:
 ### Log attributes
 
 Standard attributes propagated through context:
-
