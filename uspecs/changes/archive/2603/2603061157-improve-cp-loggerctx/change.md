@@ -2,6 +2,7 @@
 registered_at: 2026-03-05T12:29:51Z
 change_id: 2603051229-improve-cp-loggerctx
 baseline: a6684f7d9bf2c97180ac071782af45613329e7a1
+archived_at: 2026-03-06T11:57:08Z
 ---
 
 # Change request: Improve loggerctx in command processor
