@@ -39,16 +39,13 @@ Predefined standard attributes include:
 - **stage** (string): Processing stage name
   - Purpose: Identify which stage of processing a log entry corresponds to
   - Examples: `routing`, `before_save_plog`, `after_save_plog`
+    - `latency1`: `routing` stage for first response latency measurement, milliseconds
   - Set by: logger from the `stage` argument in log calls
-
-- **latency1** (time.Duration): First response latency
-  - Set by: Router when it receives the first response from the processing pipeline
-  - Purpose: Performance analysis and bottleneck identification
 
 ## General scenarios
 
 - App enriches request context with logging attributes (vapp, reqid, wsid, extension)
-- App log specifying the context, feat, stage, msg and []args as parameters
+- App log specifying the `context`, `feat`, `stage`, []args as parameters
   - feat and stage arguments become standard log attributes with the keys "feat" and "stage"
 
 ## Per-component scenarios
