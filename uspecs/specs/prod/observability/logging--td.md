@@ -6,49 +6,56 @@
 
 A key-value pair that provides additional context to log entries. Attributes are stored in context.Context and propagate with the context through the request processing pipeline.
 
-Predefined standard attributes includes:
-
-- **vapp** (string): Voedger application qualified name
-  - Example: "untill.fiscalcloud", "untill.airsbp"
-  - Set by: Router at request entry point
-  - Purpose: Identify which application is processing the request
-
-- **feat** (string): Feature name within the application
-  - Example: "magicmenu"
-  - Set by: Application-specific handlers
-  - Purpose: Track feature-level activity
+Predefined standard attributes include:
 
 - **reqid** (string): Unique request identifier
-  - Format: "{serverStartTime}-{atomicCounter}"
-  - Example: "20260306120000-42"
-  - Set by: Router using global atomic counter
   - Purpose: Trace single request through all processing stages
+  - Set by: Router using global atomic counter
+  - Format: "{Server start time (MMDDHHmm)}-{atomicCounter}"
+  - Example: "26031402-42"
 
+- **vapp** (string): Voedger application qualified name
+  - Purpose: Identify which application is processing the request
+  - Set by: Processing initiator
+    - Router at request entry point: `sys.registry`, `untill.fiscalcloud`
+    - Voedger on bootstrapping: `sys.voedger`
+  
 - **wsid** (int): Workspace ID
-  - Example: 1001
-  - Set by: Router from validated request data
   - Purpose: Filter logs by workspace for multi-tenant debugging
+  - Set by: Router from validated request data
+  - Example: 1001
 
 - **extension** (string): Extension or function being executed
-  - Example: "c.sys.UploadBLOBHelper", "q.sys.Collection"
-  - Set by: Router based on request resource/QName
   - Purpose: Identify specific command/query/function in logs
+  - Example: `c.sys.UploadBLOBHelper`, `q.sys.Collection`
+  - Set by: Processing initiator
+    - Router: based on request resource/QName
 
-- **frlatency** (time.Duration): First response latency
-  - Set by: router when it receives the first response from the processing pipeline
+- **feat** (string): Feature name within the application
+  - Purpose: Track feature-level activity
+  - Set by: logger from the `feat` argument in log calls
+  - Examples: `routing`, `magicmenu`
+  
+- **stage** (string): Processing stage name
+  - Purpose: Identify which stage of processing a log entry corresponds to
+  - Examples: `routing`, `before_save_plog`, `after_save_plog`
+  - Set by: logger from the `stage` argument in log calls
+
+- **latency1** (time.Duration): First response latency
+  - Set by: Router when it receives the first response from the processing pipeline
   - Purpose: Performance analysis and bottleneck identification
 
-## General scenarious
+## General scenarios
 
 - App enriches request context with logging attributes (vapp, reqid, wsid, extension)
-- App log specifying the context, stage and []args as parameters
-  - stage becomes a standard log attribute with the key "stage"
+- App log specifying the context, feat, stage, msg and []args as parameters
+  - feat and stage arguments become standard log attributes with the keys "feat" and "stage"
 
 ## Per-component scenarios
 
 - Router
 - Command Processor
-- Quiery Processor
+- Query Processor
 - Actualizer
 
 ## Key components
@@ -89,9 +96,3 @@ Predefined standard attributes includes:
   - Logs command handling errors and success with request context
   - Includes command body in log entries for debugging
   - Used by: Command execution pipeline
-
-## Key data models
-
-### Log attributes
-
-Standard attributes propagated through context:
