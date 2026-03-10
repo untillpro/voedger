@@ -11,7 +11,7 @@
 
 ## Technical design
 
-- [x] create: [prod/observability/logging--arch.md](../../specs/prod/observability/logging--arch.md)
+- [x] create: [prod/observability/logging--td.md](../../specs/prod/observability/logging--td.md)
   - add: Logging subsystem architecture document
   - add: Overview of structured logging approach
   - add: Key components (logger package, context propagation, log attributes)
