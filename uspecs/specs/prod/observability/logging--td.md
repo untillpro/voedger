@@ -1,4 +1,4 @@
-# Context subsystem architecture: logging
+# Technical design: logging
 
 ## Concepts
 
@@ -34,8 +34,7 @@ Predefined standard attributes include:
 - **feat** (string): Feature name within the application
   - Purpose: Track feature-level activity
   - Set by: logger from the `feat` argument of context-aware logging functions
-  - Examples: `routing`, `magicmenu`
-    - CP: `cp`
+  - Examples: `magicmenu`
   
 - **stage** (string): Processing stage name
   - Purpose: Identify which stage of processing a log entry corresponds to
@@ -87,4 +86,3 @@ Predefined standard attributes include:
   - Creates initial request context with vapp, reqid, wsid, extension attributes
   - Generates unique request IDs using server start time and atomic counter
   - Used by: HTTP request handlers
-  
