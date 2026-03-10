@@ -33,20 +33,21 @@ Predefined standard attributes include:
 
 - **feat** (string): Feature name within the application
   - Purpose: Track feature-level activity
-  - Set by: logger from the `feat` argument in log calls
+  - Set by: logger from the `feat` argument of context-aware logging functions
   - Examples: `routing`, `magicmenu`
+    - CP: `cp`
   
 - **stage** (string): Processing stage name
   - Purpose: Identify which stage of processing a log entry corresponds to
-  - Examples: `routing`, `before_save_plog`, `after_save_plog`
+  - Examples: `request parsed`, `before save plog`, `after save plog`
     - `latency1`: `routing` stage for first response latency measurement, milliseconds
-  - Set by: logger from the `stage` argument in log calls
+  - Set by: logger from the `stage` argument of context-aware logging functions
 
 ## General scenarios
 
 - App enriches request context with logging attributes (vapp, reqid, wsid, extension)
-- App log specifying the `context`, `feat`, `stage`, []args as parameters
-  - feat and stage arguments become standard log attributes with the keys "feat" and "stage"
+- App log specifying the `context`, `stage`, []args as parameters
+  - stage argument becomes a log attribute with the key `stage`
 
 ## Per-component scenarios
 
@@ -56,8 +57,6 @@ Predefined standard attributes include:
 - Actualizer
 
 ## Key components
-
-📦 System components:
 
 - [logger package](../../../../pkg/goutils/logger)
   - Provides structured logging with context-aware attribute propagation
@@ -88,8 +87,4 @@ Predefined standard attributes include:
   - Creates initial request context with vapp, reqid, wsid, extension attributes
   - Generates unique request IDs using server start time and atomic counter
   - Used by: HTTP request handlers
-
-- [Command processor logging](../../../../pkg/processors/command/provide.go)
-  - Logs command handling errors and success with request context
-  - Includes command body in log entries for debugging
-  - Used by: Command execution pipeline
+  
