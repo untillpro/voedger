@@ -26,24 +26,28 @@
 Stage values describe the processing phase or operation context:
 
 - Router stages:
-  - `"request accepted"` - Request received and validated
-  - `"send to vvm"` - Sending request to VVM
+  - `"routing"` - Request received, validated and currently sendinf to VVM
   - `"server"` - Server-level operations
-  - `"latency1"` - First response latency measurement (routing stage duration in milliseconds)
+  - `"latency1"` - First response latency measurement
 - Command processor stages:
   - `"command handling"` - Command processing (success/error)
-  - `"partition recovery"` - Partition recovery completion
+  - `"partition recovery"` - Partition recovery
   - `"partition restart"` - Partition restart warning
+    //FIXME there are 2 substages: acl check for func and acl check for each CUD
   - `"acl check"` - ACL validation
   - `"notify actualizers"` - Notifying async actualizers
+    //FIXME: not clear what is it. If it is just response marshalling then drop
   - `"marshal response"` - Response marshaling
+  - `Event/CUD logging stage` is included
 - Event/CUD logging stages:
   - `"log event"` - Event logging
   - `"log cud"` - CUD (Create/Update/Delete) logging
 - Actualizer stages:
   - `"projector error"` - Projector execution error
   - `"projector success"` - Projector execution success
+    // FIXME not clear what is it, drop
   - `"read offset"` - Reading offset from storage
+    // FIXME not clear when and what to log. Per each plog record?
   - `"read plog"` - Reading PLog
   - `"notification received"` - N10n notification received
 - Test stages:
@@ -70,11 +74,11 @@ Stage values describe the processing phase or operation context:
   - use: `"test"` as stage value for all test calls
 
 - [ ] update: [pkg/router/utils.go](../../../pkg/router/utils.go)
-  - update: `logServeRequest()` - `LogCtx` call with stage `"request accepted"`
+  - update: `logServeRequest()` - `LogCtx` call with stage `"routing"`
 
 - [ ] update: [pkg/router/impl_http.go](../../../pkg/router/impl_http.go)
   - update: `log()` method - `LogCtx` call with stage `"server"`
-  - update: Line 211 - `ErrorCtx` call with stage `"send to vvm"`
+  - update: Line 211 - `ErrorCtx` call with stage `"routing"`
   - add: latency1 logging in `RequestHandler_V1` function
     - capture: start time after `logServeRequest(requestCtx)` call (line 207)
     - log: after `reply_v1()` completes (after line 217)
@@ -82,7 +86,7 @@ Stage values describe the processing phase or operation context:
     - format: `"<duration_ms>"`
 
 - [ ] update: [pkg/router/impl_apiv2.go](../../../pkg/router/impl_apiv2.go)
-  - update: Line 497 - `ErrorCtx` call with stage `"send to vvm"`
+  - update: Line 497 - `ErrorCtx` call with stage `"routing"`
   - add: latency1 logging in `sendRequestAndReadResponse` function
     - capture: start time after `logServeRequest(requestCtx)` call (line 493)
     - log: after `reply_v2()` completes (after line 503)
