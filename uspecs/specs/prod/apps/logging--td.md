@@ -78,9 +78,11 @@ A key-value pair that provides additional context to log entries. Attributes are
 
 ## General scenarios
 
-- App enriches request context with logging attributes (vapp, reqid, wsid, extension)
-- App log specifying the `context`, `stage`, []args as parameters
-  - stage argument becomes a log attribute with the key `stage`
+- App enriches request context with logging attributes (vapp, reqid, wsid, extension) using `logger.WithContextAttrs()`
+- App calls context-aware logging functions with `context`, `stage`, and message `args` as parameters
+  - Context attributes (vapp, reqid, wsid, extension, etc.) are automatically extracted and added to the log entry
+  - Stage parameter is added as a log attribute with the key `logger.LogAttr_Stage`
+  - Message args are formatted via `fmt.Sprint()` and used as the log message
 
 ## Per-component scenarios
 
@@ -106,11 +108,6 @@ A key-value pair that provides additional context to log entries. Attributes are
 - Logs "request accepted" at Verbose level when request is received
 - Logs errors when sending request to VVM fails at Error level with body
 
-**Logging functions used:**
-
-- `logger.LogCtx(ctx, skipFrames, level, args...)` for request acceptance
-- `logger.ErrorCtx(ctx, args...)` for request sending errors
-
 ### Command Processor
 
 **Request processing:**
@@ -133,14 +130,6 @@ A key-value pair that provides additional context to log entries. Attributes are
 
 - Logs partition recovery completion at Info level with nextPLogOffset and workspaces JSON
 
-**Logging functions used:**
-
-- `logger.LogCtx(ctx, skipFrames, level, args...)` for errors and success
-- `logger.ErrorCtx(ctx, args...)` via `logHandlingError()`
-- `logger.VerboseCtx(ctx, args...)` via `logSuccess()` and event/CUD logging
-- `logger.WarningCtx(ctx, args...)` for partition restart warnings
-- `logger.InfoCtx(ctx, args...)` for partition recovery
-
 **Metrics reported:**
 
 - `CommandsTotal`: Total commands processed
@@ -162,10 +151,6 @@ A key-value pair that provides additional context to log entries. Attributes are
 - Uses standard `logger.Error()` instead of context-aware `logger.ErrorCtx()`
 - Does not propagate request context attributes to log entries
 - Opportunity for improvement: migrate to context-aware logging
-
-**Logging functions used:**
-
-- `logger.Error(args...)` for query execution errors and rowsProcessor errors
 
 **Metrics reported:**
 
@@ -201,12 +186,6 @@ A key-value pair that provides additional context to log entries. Attributes are
 - `asyncActualizer.logError()` extracts context and uses `logger.ErrorCtx()`
 - Falls back to VVM context if error doesn't contain context
 - Errors trigger `ProjectorsInError` metric increment
-
-**Logging functions used:**
-
-- `logger.ErrorCtx(ctx, args...)` for projector errors
-- `logger.VerboseCtx(ctx, args...)` via shared event/CUD logging
-- `logger.LogCtx(ctx, skipFrames, level, args...)` via shared utilities
 
 **Metrics reported:**
 
@@ -281,18 +260,26 @@ Internal function that extracts attributes from context chain.
 **Context-aware functions ([loggerctx.go](../../../../pkg/goutils/logger/loggerctx.go#L31))**
 
 ```go
-func VerboseCtx(ctx context.Context, args ...interface{})
-func ErrorCtx(ctx context.Context, args ...interface{})
-func InfoCtx(ctx context.Context, args ...interface{})
-func WarningCtx(ctx context.Context, args ...interface{})
-func TraceCtx(ctx context.Context, args ...interface{})
-func LogCtx(ctx context.Context, skipStackFrames int, level TLogLevel, args ...interface{})
+func VerboseCtx(ctx context.Context, stage string, args ...interface{})
+func ErrorCtx(ctx context.Context, stage string, args ...interface{})
+func InfoCtx(ctx context.Context, stage string, args ...interface{})
+func WarningCtx(ctx context.Context, stage string, args ...interface{})
+func TraceCtx(ctx context.Context, stage string, args ...interface{})
+func LogCtx(ctx context.Context, skipStackFrames int, level TLogLevel, stage string, args ...interface{})
 ```
 
-Automatically append context attributes to log entries using slog.
+Automatically append context attributes and stage to log entries using slog.
+
+- **Parameters:**
+  - `ctx`: Context containing logging attributes (vapp, reqid, wsid, extension, etc.)
+  - `stage`: Processing stage name (e.g., "request parsed", "before save plog", "after save plog")
+  - `args`: Message components to be formatted via `fmt.Sprint()`
+  - `skipStackFrames` (LogCtx only): Number of stack frames to skip for source location
+  - `level` (LogCtx only): Log level for the entry
 
 - **Implementation:**
   - Extracts attributes from context via `sLogAttrsFromCtx()`
+  - Adds `stage` parameter as a log attribute with key `logger.LogAttr_Stage`
   - Adds source location (`src` attribute with function:line)
   - Formats message via `fmt.Sprint(args...)`
   - Routes to slogOut (stdout) or slogErr (stderr) based on level
@@ -302,6 +289,13 @@ Automatically append context attributes to log entries using slog.
   - Router: request acceptance, error logging
   - Command processor: error, success, event/CUD logging
   - Actualizers: error and event logging
+
+- **Usage example:**
+  ```go
+  logger.VerboseCtx(ctx, "request parsed", "processing command")
+  logger.ErrorCtx(ctx, "validation failed", "invalid workspace ID:", wsid)
+  logger.InfoCtx(ctx, "partition recovered", "nextPLogOffset:", offset)
+  ```
 
 **Standard functions ([logger.go](../../../../pkg/goutils/logger/logger.go#L44))**
 
@@ -330,6 +324,7 @@ const (
     LogAttr_ReqID     = "reqid"     // Request ID
     LogAttr_WSID      = "wsid"      // Workspace ID
     LogAttr_Extension = "extension" // Extension/function name
+    LogAttr_Stage     = "stage"     // Processing stage name
 )
 ```
 

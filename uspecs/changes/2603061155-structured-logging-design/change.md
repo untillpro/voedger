@@ -21,3 +21,5 @@ Design a logging subsystem architecture that provides:
 - Tracking of vapp, reqid, wsid, and extension stages
 - Duration measurement for each processing stage
 - Structured logging format for consistent log analysis
+
+Make sources use stage attribute
