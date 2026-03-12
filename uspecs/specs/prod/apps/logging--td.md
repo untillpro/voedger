@@ -1,4 +1,4 @@
-# Context subsystem architecture: logging
+# Technical design: logging
 
 ## Overview
 
@@ -37,12 +37,23 @@ A key-value pair that provides additional context to log entries. Attributes are
   - Example: "03061504-42"
   - Set by: Router using server start time and atomic counter
   - Purpose: Trace single request through all processing stages
+  - Set by: Router using global atomic counter
+  - Format: "{Server start time (MMDDHHmm)}-{atomicCounter}"
+  - Example: "26031402-42"
 
+- **vapp** (string): Voedger application qualified name
+  - Purpose: Identify which application is processing the request
+  - Set by: Processing initiator
+    - Router at request entry point: `sys.registry`, `untill.fiscalcloud`
+    - Voedger on bootstrapping: `sys.voedger`
+  
 - **wsid** (int): Workspace ID
   - Constant: `logger.LogAttr_WSID`
   - Example: 1001
   - Set by: Router from validated request data, actualizers when processing events
   - Purpose: Filter logs by workspace for multi-tenant debugging
+  - Set by: Router from validated request data
+  - Example: 1001
 
 - **extension** (string): Extension or function being executed
   - Constant: `logger.LogAttr_Extension`
@@ -50,16 +61,26 @@ A key-value pair that provides additional context to log entries. Attributes are
     - "sys._Docs": API v2, working with documents
   - Set by: Router based on request resource/QName or API path
   - Purpose: Identify specific command/query/function in logs
+  - Example: `c.sys.UploadBLOBHelper`, `q.sys.Collection`
+  - Set by: Processing initiator
+    - Router: based on request resource/QName
 
-- **frlatency** (time.Duration): First response latency
-  - Set by: router when it receives the first response from the processing pipeline
-  - Purpose: Performance analysis and bottleneck identification
+- **feat** (string): Feature name within the application
+  - Purpose: Track feature-level activity
+  - Set by: logger from the `feat` argument of context-aware logging functions
+  - Examples: `magicmenu`
+  
+- **stage** (string): Processing stage name
+  - Purpose: Identify which stage of processing a log entry corresponds to
+  - Examples: `request parsed`, `before save plog`, `after save plog`
+    - `latency1`: `routing` stage for first response latency measurement, milliseconds
+  - Set by: logger from the `stage` argument of context-aware logging functions
 
-## General scenarious
+## General scenarios
 
 - App enriches request context with logging attributes (vapp, reqid, wsid, extension)
-- App log specifying the context, stage and []args as parameters
-  - stage becomes a standard log attribute with the key "stage"
+- App log specifying the `context`, `stage`, []args as parameters
+  - stage argument becomes a log attribute with the key `stage`
 
 ## Per-component scenarios
 
