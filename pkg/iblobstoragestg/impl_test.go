@@ -10,6 +10,7 @@ import (
 	"context"
 	"crypto/rand"
 	_ "embed"
+	"errors"
 	"io"
 	"log"
 	"testing"
@@ -207,6 +208,123 @@ func TestFewBucketsBLOB(t *testing.T) {
 
 	// Compare
 	require.Equal(bigBLOB, buf.Bytes())
+}
+
+func TestReadBLOBStopLimiter(t *testing.T) {
+	outerRequire := require.New(t)
+	asf := mem.Provide(testingu.MockTime)
+	asp := istorageimpl.Provide(asf)
+	storage, err := asp.AppStorage(istructs.AppQName_test1_app1)
+	outerRequire.NoError(err)
+	blobber := Provide(&storage, timeu.NewITime())
+	ctx := context.TODO()
+	desc := iblobstorage.DescrType{Name: "test", ContentType: "text/plain"}
+
+	writeBLOB := func(t *testing.T, blobID int64, data []byte) iblobstorage.PersistentBLOBKeyType {
+		require := require.New(t)
+		key := iblobstorage.PersistentBLOBKeyType{
+			ClusterAppID: 2,
+			WSID:         2,
+			BlobID:       istructs.RecordID(blobID),
+		}
+		_, err := blobber.WriteBLOB(ctx, key, desc, bytes.NewReader(data), NewWLimiter_Size(iblobstorage.BLOBMaxSizeType(len(data))))
+		require.NoError(err)
+		return key
+	}
+
+	t.Run("stops after first chunk", func(t *testing.T) {
+		require := require.New(t)
+		bigBLOB := bytes.Repeat([]byte("a"), int(chunkSize+1))
+		key := writeBLOB(t, 3, bigBLOB)
+		var buf bytes.Buffer
+		writer := bufio.NewWriter(&buf)
+		remaining := chunkSize
+
+		err := blobber.ReadBLOB(ctx, &key, nil, writer, func(wantReadBytes uint64) error {
+			if remaining == 0 {
+				return iblobstorage.ErrReadLimitReached
+			}
+			if wantReadBytes >= remaining {
+				remaining = 0
+			} else {
+				remaining -= wantReadBytes
+			}
+			return nil
+		})
+
+		require.NoError(err)
+		require.NoError(writer.Flush())
+		require.Equal(bigBLOB[:chunkSize], buf.Bytes())
+	})
+
+	t.Run("stops immediately and still calls state callback", func(t *testing.T) {
+		require := require.New(t)
+		bigBLOB := bytes.Repeat([]byte("b"), int(chunkSize+1))
+		key := writeBLOB(t, 4, bigBLOB)
+		var (
+			buf           bytes.Buffer
+			callbackCalls int
+			stateSize     uint64
+		)
+		writer := bufio.NewWriter(&buf)
+
+		err := blobber.ReadBLOB(ctx, &key, func(state iblobstorage.BLOBState) error {
+			callbackCalls++
+			stateSize = state.Size
+			return nil
+		}, writer, func(uint64) error {
+			return iblobstorage.ErrReadLimitReached
+		})
+
+		require.NoError(err)
+		require.NoError(writer.Flush())
+		require.Equal(1, callbackCalls)
+		require.Equal(uint64(len(bigBLOB)), stateSize)
+		require.Empty(buf.Bytes())
+	})
+
+	t.Run("propagates non limit error", func(t *testing.T) {
+		require := require.New(t)
+		bigBLOB := bytes.Repeat([]byte("c"), int(chunkSize+1))
+		key := writeBLOB(t, 5, bigBLOB)
+		var buf bytes.Buffer
+		writer := bufio.NewWriter(&buf)
+		expectedErr := errors.New("stop")
+
+		err := blobber.ReadBLOB(ctx, &key, nil, writer, func(uint64) error {
+			return expectedErr
+		})
+
+		require.ErrorIs(err, expectedErr)
+		require.NoError(writer.Flush())
+		require.Empty(buf.Bytes())
+	})
+
+	t.Run("stops after first bucket", func(t *testing.T) {
+		require := require.New(t)
+		firstBucketSize := chunkSize * bucketSize
+		bigBLOB := bytes.Repeat([]byte("d"), int(firstBucketSize+1))
+		key := writeBLOB(t, 6, bigBLOB)
+		var buf bytes.Buffer
+		writer := bufio.NewWriter(&buf)
+		remaining := firstBucketSize
+
+		err := blobber.ReadBLOB(ctx, &key, nil, writer, func(wantReadBytes uint64) error {
+			if remaining == 0 {
+				return iblobstorage.ErrReadLimitReached
+			}
+			if wantReadBytes >= remaining {
+				remaining = 0
+			} else {
+				remaining -= wantReadBytes
+			}
+			return nil
+		})
+
+		require.NoError(err)
+		require.NoError(writer.Flush())
+		require.Equal(bigBLOB[:int(firstBucketSize)], buf.Bytes())
+	})
 }
 
 func TestQuotaExceed(t *testing.T) {

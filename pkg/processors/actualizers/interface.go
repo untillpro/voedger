@@ -24,8 +24,6 @@ import (
 
 type TimeAfterFunc func(d time.Duration) <-chan time.Time
 
-type LogErrorFunc func(args ...interface{})
-
 type BasicAsyncActualizerConfig struct {
 	VvmName string
 
@@ -38,8 +36,6 @@ type BasicAsyncActualizerConfig struct {
 	StateOpts  state.StateOpts
 	HTTPClient httpu.IHTTPClient
 
-	// Optional. Default value: `core-logger.Error`
-	LogError LogErrorFunc
 	// Optional.
 	AAMetrics AsyncActualizerMetrics
 	//IntentsLimit top limit per event, optional, default value is 100

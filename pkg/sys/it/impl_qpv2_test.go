@@ -2563,6 +2563,12 @@ func TestQueryProcessor2_AuthLogin(t *testing.T) {
 		require.JSONEq(`{"status":401,"message":"login or password is incorrect"}`, resp.Body)
 	})
 
+	t.Run("Login with special JSON characters in password", func(t *testing.T) {
+		specialLoginName := vit.NextName()
+		specialLogin := vit.SignUp(specialLoginName, `p"a\ss`, istructs.AppQName_test1_app1)
+		vit.SignIn(specialLogin)
+	})
+
 }
 
 // [~server.authnz/it.TestRefresh~impl]

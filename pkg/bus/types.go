@@ -63,3 +63,5 @@ type implIResponder struct {
 	responseMetaCh chan ResponseMeta
 	started        bool
 }
+
+type IRequestSenderPtr *IRequestSender

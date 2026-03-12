@@ -146,6 +146,9 @@ func (w *testCmdWorkpeace) Release() {
 	}
 }
 
+func (w *testCmdWorkpeace) Context() context.Context { return context.Background() }
+func (w *testCmdWorkpeace) PLogOffset() istructs.Offset { return 0 }
+
 type testCmdProc struct {
 	pipeline.ISyncPipeline
 	appParts  appparts.IAppPartitions

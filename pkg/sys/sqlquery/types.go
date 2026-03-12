@@ -32,3 +32,10 @@ type result struct {
 }
 
 func (o *result) AsString(string) string { return o.value }
+
+type blobTextCapture struct {
+	blobPos   uint64 // current position in the BLOB stream (advanced by limit() before Write())
+	startFrom uint64 // first byte to capture (inclusive)
+	endPos    uint64 // first byte to stop capturing (exclusive), equals startFrom + maxBytes
+	buf       []byte // accumulated captured bytes
+}

@@ -150,7 +150,7 @@ func buildUniqueViewKeyByValues(kb istructs.IKeyBuilder, qName appdef.QName, uni
 	kb.PutBytes(field_Values, uniqueKeyValues)
 }
 
-func getUniqueKeyValuesFromMap(values map[string]interface{}, uniqueFields []appdef.IField, uniqueQName appdef.QName) (res []byte, err error) {
+func GetUniqueKeyValuesFromMap(values map[string]interface{}, uniqueFields []appdef.IField, uniqueQName appdef.QName) (res []byte, err error) {
 	buf := bytes.NewBuffer(nil)
 	for _, uniqueField := range uniqueFields {
 		val := values[uniqueField.Name()]

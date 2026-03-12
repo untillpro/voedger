@@ -6,10 +6,14 @@
 package processors
 
 import (
+	"context"
+	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/voedger/voedger/pkg/appdef"
 	"github.com/voedger/voedger/pkg/coreutils"
+	"github.com/voedger/voedger/pkg/goutils/logger"
 	"github.com/voedger/voedger/pkg/iauthnz"
 	"github.com/voedger/voedger/pkg/istructs"
 	"github.com/voedger/voedger/pkg/state"
@@ -54,6 +58,19 @@ func GetRoles(principals []iauthnz.Principal) (roles []appdef.QName) {
 	return roles
 }
 
+func cudOpToStringForLog(cud istructs.ICUDRow) string {
+	if cud.IsNew() {
+		return "create"
+	}
+	if cud.IsDeactivated() {
+		return "deactivate"
+	}
+	if cud.IsActivated() {
+		return "activate"
+	}
+	return "update"
+}
+
 func SetPrincipalsForAnonymousOnlyFunc(appDef appdef.IAppDef, funcQName appdef.QName, wsid istructs.WSID, setter interface{ SetPrincipals([]iauthnz.Principal) }) (ok bool) {
 	queryType := appDef.Type(funcQName)
 	rulesForQuery := []appdef.IACLRule{}
@@ -79,3 +96,57 @@ func SetPrincipalsForAnonymousOnlyFunc(appDef appdef.IAppDef, funcQName appdef.Q
 	return false
 }
 
+// returns logCtx enriched by `woffset`, `poffset`, `evqname` log attribs
+// returns initial logCtx if verbose level is off
+func LogEventAndCUDs(logCtx context.Context, event istructs.IPLogEvent, pLogOffset istructs.Offset, appDef appdef.IAppDef,
+	skipStackFrames int, perCUDLogCallback func(istructs.ICUDRow) (bool, string, error), preCUDMessage string) (enrichedCtx context.Context, err error) {
+	if !logger.IsVerbose() {
+		return logCtx, nil
+	}
+	enrichedCtx = logger.WithContextAttrs(logCtx, map[string]any{
+		"woffset": event.WLogOffset(),
+		"poffset": pLogOffset,
+		"evqname": event.QName(),
+	})
+	argsJSON := []byte("{}")
+	if event.ArgumentObject() != nil && event.ArgumentObject().QName() != appdef.NullQName {
+		argsJSON, err = json.Marshal(coreutils.ObjectToMap(event.ArgumentObject(), appDef))
+		if err != nil {
+			// notest
+			return nil, err
+		}
+	}
+	msg := fmt.Sprintf("args=%s", argsJSON)
+	if len(preCUDMessage) > 0 {
+		msg += ", " + preCUDMessage
+	}
+	logger.LogCtx(enrichedCtx, skipStackFrames+1, logger.LogLevelVerbose, msg)
+	for cud := range event.CUDs {
+		shouldLog, extraMsg := true, ""
+		if perCUDLogCallback != nil {
+			shouldLog, extraMsg, err = perCUDLogCallback(cud)
+			if err != nil {
+				return nil, err
+			}
+		}
+		if !shouldLog {
+			continue
+		}
+		newFieldsJSON, err := json.Marshal(coreutils.FieldsToMap(cud, appDef))
+		if err != nil {
+			// notest
+			return nil, err
+		}
+		cudCtx := logger.WithContextAttrs(enrichedCtx, map[string]any{
+			"rectype": cud.QName(),
+			"recid":   cud.ID(),
+			"op":      cudOpToStringForLog(cud),
+		})
+		msg := fmt.Sprintf("newfields=%s", newFieldsJSON)
+		if len(extraMsg) > 0 {
+			msg += ", " + extraMsg
+		}
+		logger.LogCtx(cudCtx, skipStackFrames+4, logger.LogLevelVerbose, msg) // +4 because call stack goes from cudType.enumRecs() here
+	}
+	return enrichedCtx, nil
+}

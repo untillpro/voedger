@@ -18,7 +18,7 @@ import (
 
 func (r *implIRequestHandler) HandleRead(appQName appdef.AppQName, wsid istructs.WSID, header map[string]string, requestCtx context.Context,
 	okResponseIniter func(headersKeyValue ...string) io.Writer,
-	errorResponder ErrorResponder, existingBLOBIDOrSUUID string, requestSender bus.IRequestSender) bool {
+	errorResponder ErrorResponder, existingBLOBIDOrSUUID string, requestSender bus.IRequestSender, rLimiter iblobstorage.RLimiterType) bool {
 	doneCh := make(chan interface{})
 	return r.handle(&implIBLOBMessage_Read{
 		implIBLOBMessage_base: implIBLOBMessage_base{
@@ -32,6 +32,7 @@ func (r *implIRequestHandler) HandleRead(appQName appdef.AppQName, wsid istructs
 			requestSender:    requestSender,
 		},
 		existingBLOBIDOrSUUID: existingBLOBIDOrSUUID,
+		rLimiter:              rLimiter,
 	}, doneCh)
 }
 
@@ -39,7 +40,7 @@ func (r *implIRequestHandler) HandleRead(appQName appdef.AppQName, wsid istructs
 func (r *implIRequestHandler) HandleRead_V2(appQName appdef.AppQName, wsid istructs.WSID, header map[string]string, requestCtx context.Context,
 	okResponseIniter func(headersKeyValue ...string) io.Writer,
 	errorResponder ErrorResponder, ownerRecord appdef.QName, ownerRecordField string, ownerID istructs.RecordID,
-	requestSender bus.IRequestSender) bool {
+	requestSender bus.IRequestSender, rLimiter iblobstorage.RLimiterType) bool {
 	doneCh := make(chan interface{})
 	return r.handle(&implIBLOBMessage_Read{
 		implIBLOBMessage_base: implIBLOBMessage_base{
@@ -56,13 +57,14 @@ func (r *implIRequestHandler) HandleRead_V2(appQName appdef.AppQName, wsid istru
 		ownerRecord:      ownerRecord,
 		ownerRecordField: ownerRecordField,
 		ownerID:          ownerID,
+		rLimiter:         rLimiter,
 	}, doneCh)
 
 }
 
 func (r *implIRequestHandler) HandleReadTemp_V2(appQName appdef.AppQName, wsid istructs.WSID, header map[string]string, requestCtx context.Context,
 	okResponseIniter func(headersKeyValue ...string) io.Writer,
-	errorResponder ErrorResponder, requestSender bus.IRequestSender, suuid iblobstorage.SUUID) bool {
+	errorResponder ErrorResponder, requestSender bus.IRequestSender, suuid iblobstorage.SUUID, rLimiter iblobstorage.RLimiterType) bool {
 	doneCh := make(chan interface{})
 	return r.handle(&implIBLOBMessage_Read{
 		implIBLOBMessage_base: implIBLOBMessage_base{
@@ -77,6 +79,7 @@ func (r *implIRequestHandler) HandleReadTemp_V2(appQName appdef.AppQName, wsid i
 			isAPIv2:          true,
 		},
 		existingBLOBIDOrSUUID: string(suuid),
+		rLimiter:              rLimiter,
 	}, doneCh)
 
 }

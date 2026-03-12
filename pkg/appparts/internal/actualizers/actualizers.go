@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/voedger/voedger/pkg/appdef"
+	"github.com/voedger/voedger/pkg/goutils/logger"
 	"github.com/voedger/voedger/pkg/istructs"
 )
 
@@ -82,7 +83,11 @@ func (pa *PartitionActualizers) startNews(vvmCtx context.Context, appDef appdef.
 		if !prj.Sync() {
 			name := prj.QName()
 			if _, exists := pa.rt.Load(name); !exists {
-				pa.start(vvmCtx, name, run) // actualizer will be started in a separated goroutine there
+				logCtx := logger.WithContextAttrs(vvmCtx, map[string]any{
+					logger.LogAttr_VApp:      pa.app,
+					logger.LogAttr_Extension: name,
+				})
+				pa.start(logCtx, name, run) // actualizer will be started in a separated goroutine there
 			}
 		}
 	}

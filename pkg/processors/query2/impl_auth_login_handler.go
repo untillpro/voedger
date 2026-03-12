@@ -6,6 +6,7 @@ package query2
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -35,13 +36,21 @@ func authLoginHandler() apiPathHandler {
 
 			pseudoWSID := coreutils.GetPseudoWSID(istructs.NullWSID, login, istructs.CurrentClusterID())
 
-			url := fmt.Sprintf(`api/v2/apps/%s/%s/workspaces/%d/queries/registry.IssuePrincipalToken?args=%s`,
+			tokenArgs, err := json.Marshal(map[string]string{
+				"Login":    login,
+				"Password": password,
+				"AppName":  qw.msg.AppQName().String(),
+			})
+			if err != nil {
+				return err
+			}
+			reqURL := fmt.Sprintf(`api/v2/apps/%s/%s/workspaces/%d/queries/registry.IssuePrincipalToken?args=%s`,
 				istructs.SysOwner, istructs.AppQName_sys_registry.Name(), pseudoWSID,
-				url.QueryEscape(fmt.Sprintf(`{"Login":"%s", "Password":"%s", "AppName": "%s"}`, login, password, qw.msg.AppQName())))
+				url.QueryEscape(string(tokenArgs)))
 
-			// WithRetry to avoid WSAECONNREFUSED errors on stress tests on Widnows
+			// WithRetry to avoid WSAECONNREFUSED errors on stress tests on Windows
 			federationWithRetry := qw.federation.WithRetry()
-			resp, err := federationWithRetry.Query(url)
+			resp, err := federationWithRetry.Query(reqURL)
 			if err != nil {
 				return err
 			}

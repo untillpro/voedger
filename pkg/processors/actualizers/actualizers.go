@@ -34,9 +34,10 @@ func newActualizers(cfg BasicAsyncActualizerConfig) *actualizers {
 }
 
 // Creates and runs new actualizer for specified partition.
+// note: vvmCtx here contains partid and prj log attribs
 //
 // # apparts.IActualizerRunner.NewAndRun
-func (a *actualizers) NewAndRun(ctx context.Context, app appdef.AppQName, part istructs.PartitionID, prj appdef.QName) {
+func (a *actualizers) NewAndRun(vvmCtx context.Context, app appdef.AppQName, part istructs.PartitionID, prj appdef.QName) {
 	act := &asyncActualizer{
 		projectorQName: prj,
 		conf: AsyncActualizerConf{
@@ -47,9 +48,9 @@ func (a *actualizers) NewAndRun(ctx context.Context, app appdef.AppQName, part i
 		appParts:   a.appParts,
 		retrierCfg: retrier.NewConfig(defaultRetryInitialDelay, defaultRetryMaxDelay),
 	}
-	act.Prepare()
+	act.Prepare(vvmCtx)
 	a.wait.Add(1)
-	act.Run(ctx)
+	act.Run(vvmCtx)
 	a.wait.Done()
 }
 

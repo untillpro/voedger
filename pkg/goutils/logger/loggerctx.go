@@ -29,43 +29,32 @@ func WithContextAttrs(ctx context.Context, attrs map[string]any) context.Context
 // (via WithContextAttrs) and appends them to the log record.
 
 func VerboseCtx(ctx context.Context, args ...interface{}) {
-	logCtx(ctx, LogLevelVerbose, slog.LevelDebug, logCtxSkipFrames, args...)
+	logCtx(ctx, LogLevelVerbose, logCtxSkipFrames, args...)
 }
 
 func ErrorCtx(ctx context.Context, args ...interface{}) {
-	logCtx(ctx, LogLevelError, slog.LevelError, logCtxSkipFrames, args...)
+	logCtx(ctx, LogLevelError, logCtxSkipFrames, args...)
 }
 
 func InfoCtx(ctx context.Context, args ...interface{}) {
-	logCtx(ctx, LogLevelInfo, slog.LevelInfo, logCtxSkipFrames, args...)
+	logCtx(ctx, LogLevelInfo, logCtxSkipFrames, args...)
 }
 
 func WarningCtx(ctx context.Context, args ...interface{}) {
-	logCtx(ctx, LogLevelWarning, slog.LevelWarn, logCtxSkipFrames, args...)
+	logCtx(ctx, LogLevelWarning, logCtxSkipFrames, args...)
 }
 
 func TraceCtx(ctx context.Context, args ...interface{}) {
-	logCtx(ctx, LogLevelTrace, slog.LevelDebug-slogLevelTrace, logCtxSkipFrames, args...)
+	logCtx(ctx, LogLevelTrace, logCtxSkipFrames, args...)
 }
 
 // skipStackFrames is relative to the caller
 func LogCtx(ctx context.Context, skipStackFrames int, level TLogLevel, args ...interface{}) {
-	slogLevel := slog.LevelDebug - slogLevelTrace
-	switch level {
-	case LogLevelVerbose:
-		slogLevel = slog.LevelDebug
-	case LogLevelInfo:
-		slogLevel = slog.LevelInfo
-	case LogLevelWarning:
-		slogLevel = slog.LevelWarn
-	case LogLevelError:
-		slogLevel = slog.LevelError
-	}
-	logCtx(ctx, level, slogLevel, skipStackFrames+logCtxSkipFrames, args...)
+	logCtx(ctx, level, skipStackFrames+logCtxSkipFrames, args...)
 }
 
 // logCtx is the shared implementation for all *Ctx functions.
-func logCtx(ctx context.Context, level TLogLevel, slogLevel slog.Level, skipStackFrames int, args ...interface{}) {
+func logCtx(ctx context.Context, level TLogLevel, skipStackFrames int, args ...interface{}) {
 	if !isEnabled(level) {
 		return
 	}
@@ -78,7 +67,23 @@ func logCtx(ctx context.Context, level TLogLevel, slogLevel slog.Level, skipStac
 	fn, line := getFuncName(skipStackFrames)
 	attrs = append(attrs, slog.Attr{Key: "src", Value: slog.StringValue(fmt.Sprintf("%s:%d", fn, line))})
 	attrs = append(attrs, attrsFromCtx...)
+	slogLevel := loggerLevelToSLogLevel(level)
 	log.Log(ctx, slogLevel, fmt.Sprint(args...), attrs...)
+}
+
+func loggerLevelToSLogLevel(level TLogLevel) slog.Level {
+	switch level {
+	case LogLevelError:
+		return slog.LevelError
+	case LogLevelWarning:
+		return slog.LevelWarn
+	case LogLevelInfo:
+		return slog.LevelInfo
+	case LogLevelVerbose:
+		return slog.LevelDebug
+	default:
+		return slog.LevelDebug - slogLevelTrace
+	}
 }
 
 func sLogAttrsFromCtx(ctx context.Context) []any {

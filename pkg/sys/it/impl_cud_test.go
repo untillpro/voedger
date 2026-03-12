@@ -24,6 +24,7 @@ func TestBasicUsage_CUD(t *testing.T) {
 	vit := it.NewVIT(t, &it.SharedConfig_App1)
 	defer vit.TearDown()
 
+
 	ws := vit.WS(istructs.AppQName_test1_app1, "test_ws")
 
 	t.Run("create", func(t *testing.T) {

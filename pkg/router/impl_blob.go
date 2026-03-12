@@ -14,6 +14,7 @@ import (
 	"github.com/voedger/voedger/pkg/appdef"
 	"github.com/voedger/voedger/pkg/bus"
 	"github.com/voedger/voedger/pkg/coreutils"
+	"github.com/voedger/voedger/pkg/iblobstoragestg"
 	"github.com/voedger/voedger/pkg/istructs"
 )
 
@@ -40,7 +41,7 @@ func (s *routerService) blobHTTPRequestHandler_Read(numsAppsWorkspaces map[appde
 		if !s.blobRequestHandler.HandleRead(data.appQName, data.wsid, data.header, reqCtxWithAttribs,
 			newBLOBOKResponseIniter(rw, http.StatusOK), func(sysErr coreutils.SysError) {
 				writeCommonError_V1(rw, sysErr, sysErr.HTTPStatus)
-			}, existingBLOBIDOrSUID, s.requestSender) {
+			}, existingBLOBIDOrSUID, s.requestSender, iblobstoragestg.RLimiter_Null) {
 			rw.WriteHeader(http.StatusServiceUnavailable)
 			rw.Header().Add("Retry-After", strconv.Itoa(DefaultRetryAfterSecondsOn503))
 		}

@@ -183,6 +183,7 @@ func (b *bStorageType) ReadBLOB(ctx context.Context, blobKey iblobstorage.IBLOBK
 	pKeyWithBucket := newKeyWithBucketNumber(blobKeyBytes, bucketNumber)
 
 	var bytesRead uint64
+	limited := false
 	for ctx.Err() == nil {
 		bucketExists := false
 		err = (*(b.blobStorage)).Read(ctx, pKeyWithBucket, nil, nil,
@@ -191,12 +192,24 @@ func (b *bStorageType) ReadBLOB(ctx context.Context, blobKey iblobstorage.IBLOBK
 				if !stateExists {
 					return fmt.Errorf("%w: blob data exists whereas state is missing", iblobstorage.ErrBLOBCorrupted)
 				}
-				if err = limiter(uint64(len(viewRecord))); err == nil {
-					_, err = writer.Write(viewRecord)
+				if limiter != nil {
+					err = limiter(uint64(len(viewRecord)))
+					if err != nil {
+						if errors.Is(err, iblobstorage.ErrReadLimitReached) {
+							limited = true
+						}
+						return err
+					}
+				}
+				if _, err = writer.Write(viewRecord); err == nil {
 					bytesRead += uint64(len(viewRecord))
 				}
 				return err
 			})
+		if errors.Is(err, iblobstorage.ErrReadLimitReached) {
+			err = nil
+			break
+		}
 		if err != nil || !bucketExists {
 			break
 		}
@@ -216,7 +229,7 @@ func (b *bStorageType) ReadBLOB(ctx context.Context, blobKey iblobstorage.IBLOBK
 		return iblobstorage.ErrBLOBNotFound
 	}
 
-	if bytesRead != state.Size {
+	if !limited && bytesRead != state.Size {
 		return fmt.Errorf("%w: %d bytes stored in the blob whereas %d bytes are read", iblobstorage.ErrBLOBCorrupted, state.Size, bytesRead)
 	}
 

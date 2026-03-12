@@ -15,6 +15,7 @@ import (
 
 	"github.com/voedger/voedger/pkg/goutils/logger"
 	retrier "github.com/voedger/voedger/pkg/goutils/retry"
+	"github.com/voedger/voedger/pkg/processors"
 	"github.com/voedger/voedger/pkg/state/stateprovide"
 	"github.com/voedger/voedger/pkg/sys"
 	"github.com/voedger/voedger/pkg/sys/authnz"
@@ -67,7 +68,7 @@ type asyncActualizer struct {
 	channelCleanup func()
 }
 
-func (a *asyncActualizer) Prepare() {
+func (a *asyncActualizer) Prepare(vvmCtx context.Context) {
 	if a.conf.IntentsLimit == 0 {
 		a.conf.IntentsLimit = defaultIntentsLimit
 	}
@@ -82,22 +83,27 @@ func (a *asyncActualizer) Prepare() {
 	if a.conf.FlushPositionInterval == 0 {
 		a.conf.FlushPositionInterval = defaultFlushPositionInterval
 	}
-	if a.conf.LogError == nil {
-		a.conf.LogError = logger.Error
-	}
 
 	a.retrierCfg.OnError = func(_ int, _ time.Duration, opErr error) (retry bool, err error) {
-		a.conf.LogError(a.name, opErr)
+		a.logError(opErr)
 		return true, nil
 	}
 }
 
-func (a *asyncActualizer) Run(ctx context.Context) {
-	for ctx.Err() == nil {
-		_ = retrier.RetryNoResult(ctx, a.retrierCfg, func() error {
-			err := a.init(ctx)
+func (a *asyncActualizer) logError(err error) {
+	var errCtx errWithCtx
+	if errors.As(err, &errCtx) {
+		logger.ErrorCtx(errCtx.ctx, errCtx.error)
+	} else {
+		logger.ErrorCtx(a.readCtx.vvmCtx, err)
+	}
+}
+
+func (a *asyncActualizer) Run(vvmCtx context.Context) {
+	for vvmCtx.Err() == nil {
+		_ = retrier.RetryNoResult(vvmCtx, a.retrierCfg, func() error {
+			err := a.init(vvmCtx)
 			if err == nil {
-				logger.Trace(a.name, "started")
 				err = a.keepReading()
 			}
 			a.finit() // execute even if a.init() has failed
@@ -114,15 +120,15 @@ func (a *asyncActualizer) Run(ctx context.Context) {
 
 func (a *asyncActualizer) cancelChannel(e error) {
 	a.readCtx.cancelWithError(e)
-	a.conf.Broker.WatchChannel(a.readCtx.ctx, a.conf.channel, func(projection in10n.ProjectionKey, offset istructs.Offset) {})
+	a.conf.Broker.WatchChannel(a.readCtx.vvmCtx, a.conf.channel, func(projection in10n.ProjectionKey, offset istructs.Offset) {})
 }
 
-func (a *asyncActualizer) init(ctx context.Context) (err error) {
+func (a *asyncActualizer) init(vvmCtx context.Context) (err error) {
 	a.plogBatch = make(plogBatch, 0, plogReadBatchSize)
 
 	a.readCtx = &asyncActualizerContextState{}
 
-	a.readCtx.ctx, a.readCtx.cancel = context.WithCancel(ctx)
+	a.readCtx.vvmCtx, a.readCtx.cancel = context.WithCancel(vvmCtx)
 
 	appDef, err := a.appParts.AppDef(a.conf.AppQName)
 	if err != nil {
@@ -169,14 +175,16 @@ func (a *asyncActualizer) init(ctx context.Context) (err error) {
 		p.projInErrAddr = p.metrics.AppMetricAddr(ProjectorsInError, a.conf.VvmName, a.conf.AppQName)
 	}
 
+	a.name = fmt.Sprintf("%v [%d]", p.name, a.conf.PartitionID)
+
 	err = a.readOffset(p.name)
 	if err != nil {
-		a.conf.LogError(a.name, err)
+		logger.ErrorCtx(vvmCtx, a.name, err)
 		return err
 	}
 
 	p.state = stateprovide.ProvideAsyncActualizerStateFactory()(
-		ctx,
+		vvmCtx,
 		p.borrowedAppStructs,
 		state.SimplePartitionIDFunc(a.conf.PartitionID),
 		p.WSIDProvider,
@@ -198,8 +206,6 @@ func (a *asyncActualizer) init(ctx context.Context) (err error) {
 		a.conf.HTTPClient,
 	)
 
-	a.name = fmt.Sprintf("%v [%d]", p.name, a.conf.PartitionID)
-
 	projectorOp := pipeline.WireAsyncOperator("Projector", p, a.conf.FlushInterval)
 
 	errHandler := &asyncErrorHandler{
@@ -211,7 +217,7 @@ func (a *asyncActualizer) init(ctx context.Context) (err error) {
 	}
 	errorHandlerOp := pipeline.WireAsyncOperator("ErrorHandler", errHandler)
 
-	a.pipeline = pipeline.NewAsyncPipeline(ctx, a.name, projectorOp, errorHandlerOp)
+	a.pipeline = pipeline.NewAsyncPipeline(vvmCtx, a.name, projectorOp, errorHandlerOp)
 
 	if a.conf.channel, a.channelCleanup, err = a.conf.Broker.NewChannel(istructs.SubjectLogin(a.name), n10nChannelDuration); err != nil {
 		return err
@@ -230,25 +236,22 @@ func (a *asyncActualizer) finit() {
 	if a.channelCleanup != nil {
 		a.channelCleanup()
 	}
-	if logger.IsTrace() {
-		logger.Trace(a.name + "s finalized")
-	}
 }
 
 func (a *asyncActualizer) keepReading() (err error) {
-	err = a.readPlogToTheEnd(a.readCtx.ctx)
+	err = a.readPlogToTheEnd()
 	if err != nil {
 		a.cancelChannel(err)
 		return
 	}
-	a.conf.Broker.WatchChannel(a.readCtx.ctx, a.conf.channel, func(projection in10n.ProjectionKey, offset istructs.Offset) {
-		if logger.IsTrace() {
-			logger.Trace(fmt.Sprintf("%s received n10n: offset %d, last handled: %d", a.name, offset, a.offset))
+	a.conf.Broker.WatchChannel(a.readCtx.vvmCtx, a.conf.channel, func(projection in10n.ProjectionKey, offset istructs.Offset) {
+		if logger.IsVerbose() {
+			logger.VerboseCtx(a.readCtx.vvmCtx, fmt.Sprintf("received n10n: offset %d, last handled: %d", offset, a.offset))
 		}
 		if a.offset < offset {
-			err = a.readPlogToOffset(a.readCtx.ctx, offset)
+			err = a.readPlogToOffset(a.readCtx.vvmCtx, offset)
 			if err != nil {
-				a.conf.LogError(a.name, err)
+				logger.ErrorCtx(a.readCtx.vvmCtx, a.name, err)
 				a.readCtx.cancelWithError(err)
 			}
 		}
@@ -264,21 +267,17 @@ func (a *asyncActualizer) handleEvent(pLogOffset istructs.Offset, event istructs
 
 	err = a.pipeline.SendAsync(work)
 	if err != nil {
-		a.conf.LogError(a.name, err)
-		return
+		a.logError(err)
+		return err
 	}
 
 	a.offset = pLogOffset
 
-	if logger.IsTrace() {
-		logger.Trace(fmt.Sprintf("offset %d for %s", a.offset, a.name))
-	}
-
-	return
+	return nil
 }
 
 func (a *asyncActualizer) readPlogByBatches(readBatch readPLogBatch) error {
-	for a.readCtx.ctx.Err() == nil {
+	for a.readCtx.vvmCtx.Err() == nil {
 		if err := readBatch(&a.plogBatch); err != nil {
 			return err
 		}
@@ -289,7 +288,7 @@ func (a *asyncActualizer) readPlogByBatches(readBatch readPLogBatch) error {
 			if err := a.handleEvent(e.Offset, e.IPLogEvent); err != nil {
 				return err
 			}
-			if a.readCtx.ctx.Err() != nil {
+			if a.readCtx.vvmCtx.Err() != nil {
 				return nil // canceled
 			}
 		}
@@ -301,18 +300,18 @@ func (a *asyncActualizer) borrowAppPart(ctx context.Context) (ap appparts.IAppPa
 	return a.appParts.WaitForBorrow(ctx, a.conf.AppQName, a.conf.PartitionID, appparts.ProcessorKind_Actualizer)
 }
 
-func (a *asyncActualizer) readPlogToTheEnd(ctx context.Context) error {
+func (a *asyncActualizer) readPlogToTheEnd() error {
 	return a.readPlogByBatches(func(batch *plogBatch) (err error) {
 		*batch = (*batch)[:0]
 
-		ap, err := a.borrowAppPart(ctx)
+		ap, err := a.borrowAppPart(a.readCtx.vvmCtx)
 		if err != nil {
 			return err
 		}
 
 		defer ap.Release()
 
-		err = ap.AppStructs().Events().ReadPLog(a.readCtx.ctx, a.conf.PartitionID, a.offset+1, istructs.ReadToTheEnd,
+		err = ap.AppStructs().Events().ReadPLog(a.readCtx.vvmCtx, a.conf.PartitionID, a.offset+1, istructs.ReadToTheEnd,
 			func(ofs istructs.Offset, event istructs.IPLogEvent) error {
 				if *batch = append(*batch, plogEvent{ofs, event}); len(*batch) == cap(*batch) {
 					return errBatchFull
@@ -340,7 +339,7 @@ func (a *asyncActualizer) readPlogToOffset(ctx context.Context, tillOffset istru
 
 		plog := ap.AppStructs().Events()
 		for readOffset := a.offset + 1; readOffset <= tillOffset; readOffset++ {
-			if err = plog.ReadPLog(a.readCtx.ctx, a.conf.PartitionID, readOffset, 1,
+			if err = plog.ReadPLog(a.readCtx.vvmCtx, a.conf.PartitionID, readOffset, 1,
 				func(ofs istructs.Offset, event istructs.IPLogEvent) error {
 					if *batch = append(*batch, plogEvent{ofs, event}); len(*batch) == cap(*batch) {
 						return errBatchFull
@@ -359,7 +358,7 @@ func (a *asyncActualizer) readPlogToOffset(ctx context.Context, tillOffset istru
 }
 
 func (a *asyncActualizer) readOffset(projectorName appdef.QName) error {
-	ap, err := a.borrowAppPart(a.readCtx.ctx)
+	ap, err := a.borrowAppPart(a.readCtx.vvmCtx)
 	if err != nil {
 		return err
 	}
@@ -392,6 +391,10 @@ type asyncProjector struct {
 	borrowedPartition     appparts.IAppPartition
 }
 
+// DoAsync is executed for every event of a given partition.
+// It determines whether:
+//   - the projector is defined in vsql in the workspace of the event, and
+//   - the projector is triggered by the event.
 func (p *asyncProjector) DoAsync(ctx context.Context, work pipeline.IWorkpiece) (pipeline.IWorkpiece, error) {
 	defer work.Release()
 	w := work.(*workpiece)
@@ -402,12 +405,18 @@ func (p *asyncProjector) DoAsync(ctx context.Context, work pipeline.IWorkpiece) 
 		p.aametrics.Set(aaCurrentOffset, p.partitionID, p.name, float64(w.pLogOffset))
 	}
 
-	if !ProjectorEvent(p.iProjector, w.event) {
+	triggeredByQName := ProjectorEvent(p.iProjector, w.event)
+	if triggeredByQName == appdef.NullQName {
 		return nil, nil
 	}
 
+	// ctx here contains vapp and extension attribs already
+	logCtx := logger.WithContextAttrs(ctx, map[string]any{
+		logger.LogAttr_WSID: w.event.Workspace(),
+	})
+
 	wrapErr := func(err error) error {
-		return fmt.Errorf("wsid[%d] offset[%d]: %w", w.event.Workspace(), w.event.WLogOffset(), err)
+		return errWithCtx{err, logCtx}
 	}
 
 	if err := p.borrowAppPart(ctx); err != nil {
@@ -416,22 +425,23 @@ func (p *asyncProjector) DoAsync(ctx context.Context, work pipeline.IWorkpiece) 
 
 	defer p.releaseAppPart()
 
-	//err = p.projector.Func(w.event, p.state, p.state)
-
 	ok, err := p.isProjectorDefined()
 	if err != nil {
-		return nil, err
+		return nil, wrapErr(err)
 	}
 	if !ok {
 		// projector is not defined in the workspace of the event -> skip
 		return nil, nil
 	}
 
-	if err := p.borrowedPartition.Invoke(ctx, p.name, p.state, p.state); err != nil {
+	if logCtx, err = logEventAndCUDs(logCtx, w.event, w.pLogOffset,
+		p.borrowedPartition.AppStructs().AppDef(), triggeredByQName); err != nil {
+		// notest
 		return nil, wrapErr(err)
 	}
-	if logger.IsVerbose() {
-		logger.Verbose(fmt.Sprintf("%s: handled %d", p.name, p.pLogOffset))
+
+	if err := p.borrowedPartition.Invoke(logCtx, p.name, p.state, p.state); err != nil {
+		return nil, wrapErr(err)
 	}
 
 	p.acceptedSinceSave = true
@@ -446,8 +456,27 @@ func (p *asyncProjector) DoAsync(ctx context.Context, work pipeline.IWorkpiece) 
 			return nil, wrapErr(err)
 		}
 	}
+	if logger.IsVerbose() {
+		logger.VerboseCtx(logCtx, "success")
+	}
 
 	return nil, nil
+}
+
+func logEventAndCUDs(logCtx context.Context, event istructs.IPLogEvent,
+	pLogOffset istructs.Offset, appDef appdef.IAppDef, triggeredByQName appdef.QName) (context.Context, error) {
+	if !logger.IsVerbose() {
+		return logCtx, nil
+	}
+	triggeredByKind := appDef.Type(triggeredByQName).Kind()
+	triggeredByFunc := appdef.TypeKind_Functions.Contains(triggeredByKind)
+	triggeredByODoc := triggeredByKind == appdef.TypeKind_ODoc || triggeredByKind == appdef.TypeKind_ORecord
+	return processors.LogEventAndCUDs(logCtx, event, pLogOffset, appDef, 2,
+		func(cud istructs.ICUDRow) (bool, string, error) {
+			return triggeredByFunc || triggeredByODoc || cud.QName() == triggeredByQName, "", nil
+		},
+		"triggeredby="+triggeredByQName.String(),
+	)
 }
 
 func (p *asyncProjector) isProjectorDefined() (bool, error) {

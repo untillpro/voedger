@@ -52,6 +52,8 @@ type cmdWorkpieceMock struct {
 func (w *cmdWorkpieceMock) AppPartition() appparts.IAppPartition { return w.appPart }
 func (w *cmdWorkpieceMock) Event() istructs.IPLogEvent           { return w.event }
 func (w *cmdWorkpieceMock) Release()                             {}
+func (w *cmdWorkpieceMock) Context() context.Context             { return context.Background() }
+func (w *cmdWorkpieceMock) PLogOffset() istructs.Offset          { return 0 }
 
 type cmdProcMock struct {
 	appParts appparts.IAppPartitions

@@ -63,7 +63,7 @@ func GetRecordIDByUniqueCombination(wsid istructs.WSID, tableQName appdef.QName,
 	}
 
 	// build unique field values stream
-	uniqueKeyValues, err := getUniqueKeyValuesFromMap(values, matchedUniqueFields, matchedUniqueQName)
+	uniqueKeyValues, err := GetUniqueKeyValuesFromMap(values, matchedUniqueFields, matchedUniqueQName)
 	if err != nil {
 		return 0, err
 	}

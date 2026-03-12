@@ -83,6 +83,7 @@ func (c *cmdWorkpiece) AppPartitions() appparts.IAppPartitions {
 }
 
 // need for sync projectors which are using wsid.GetNextWSID()
+// need for sync projectors for logging
 func (c *cmdWorkpiece) Context() context.Context {
 	return c.cmdMes.RequestCtx()
 }
@@ -95,6 +96,11 @@ func (c *cmdWorkpiece) Event() istructs.IPLogEvent {
 // need for update corrupted in c.cluster.VSqlUpdate and for various funcs of sys package
 func (c *cmdWorkpiece) GetAppStructs() istructs.IAppStructs {
 	return c.appStructs
+}
+
+// need for sync projectors for logging
+func (c *cmdWorkpiece) PLogOffset() istructs.Offset {
+	return c.pLogOffset
 }
 
 // https://github.com/voedger/voedger/issues/3163
@@ -262,6 +268,7 @@ func (cmdProc *cmdProc) recovery(ctx context.Context, cmd *cmdWorkpiece) (*appPa
 		nextPLogOffset: istructs.FirstOffset,
 	}
 	var lastPLogEvent istructs.IPLogEvent
+	var lastPLogOffset istructs.Offset
 	cb := func(plogOffset istructs.Offset, event istructs.IPLogEvent) (err error) {
 		ws := ap.getWorkspace(event.Workspace())
 
@@ -280,6 +287,7 @@ func (cmdProc *cmdProc) recovery(ctx context.Context, cmd *cmdWorkpiece) (*appPa
 			lastPLogEvent.Release() // TODO: eliminate if there will be a better solution, see https://github.com/voedger/voedger/issues/1348
 		}
 		lastPLogEvent = event
+		lastPLogOffset = plogOffset
 		return nil
 	}
 
@@ -293,12 +301,14 @@ func (cmdProc *cmdProc) recovery(ctx context.Context, cmd *cmdWorkpiece) (*appPa
 		cmd.workspace = ap.getWorkspace(lastPLogEvent.Workspace())
 		cmd.workspace.NextWLogOffset-- // cmdProc.storeOp will bump it
 		cmd.reapplier = cmd.appStructs.GetEventReapplier(cmd.pLogEvent)
+		cmd.pLogOffset = lastPLogOffset // need to get PLogOffset in sync projectors on logging
 		if err := cmdProc.storeOp.DoSync(ctx, cmd); err != nil {
 			return nil, err
 		}
 		cmd.pLogEvent = nil
 		cmd.workspace = nil
 		cmd.reapplier = nil
+		cmd.pLogOffset = istructs.NullOffset
 		lastPLogEvent.Release() // TODO: eliminate if there will be a better solution, see https://github.com/voedger/voedger/issues/1348
 	}
 
@@ -329,65 +339,35 @@ func (cmdProc *cmdProc) putPLog(_ context.Context, cmd *cmdWorkpiece) (err error
 }
 
 func logEventAndCUDs(_ context.Context, cmd *cmdWorkpiece) (err error) {
-	if !logger.IsVerbose() {
-		return nil
-	}
-	ctx := logger.WithContextAttrs(cmd.cmdMes.RequestCtx(), map[string]any{
-		"woffset": cmd.pLogEvent.WLogOffset(),
-		"poffset": cmd.rawEvent.PLogOffset(),
-		"evqname": cmd.pLogEvent.QName(),
-	})
-	argsJSON := []byte("{}")
-	if cmd.argsObject != nil {
-		argsMap := coreutils.ObjectToMap(cmd.argsObject, cmd.appStructs.AppDef())
-		argsJSON, err = json.Marshal(argsMap)
-		if err != nil {
-			// notest
-			return err
-		}
-	}
-	logger.VerboseCtx(ctx, fmt.Sprintf("args=%s", argsJSON))
 	oldRecs := make(map[istructs.RecordID]istructs.IRecord, len(cmd.parsedCUDs))
 	for _, pc := range cmd.parsedCUDs {
 		if pc.existingRecord != nil {
 			oldRecs[istructs.RecordID(pc.id)] = pc.existingRecord // nolint G115
 		}
 	}
-	for cud := range cmd.pLogEvent.CUDs {
-		newFieldsJSON, err := json.Marshal(coreutils.FieldsToMap(cud, cmd.appStructs.AppDef()))
-		if err != nil {
-			// notest
-			return err
-		}
-		oldFieldsJSON := []byte("{}")
-		if oldRec, ok := oldRecs[cud.ID()]; ok {
-			oldFieldsJSON, err = json.Marshal(coreutils.FieldsToMap(oldRec, cmd.appStructs.AppDef()))
-			if err != nil {
-				// notest
-				return err
+	enrichedLogCtx, err := processors.LogEventAndCUDs(
+		cmd.cmdMes.RequestCtx(),
+		cmd.pLogEvent,
+		cmd.rawEvent.PLogOffset(),
+		cmd.appStructs.AppDef(),
+		0,
+		func(cud istructs.ICUDRow) (bool, string, error) {
+			if oldRec, ok := oldRecs[cud.ID()]; ok {
+				oldFields, err := json.Marshal(coreutils.FieldsToMap(oldRec, cmd.appStructs.AppDef()))
+				if err != nil {
+					// notest
+					return false, "", err
+				}
+				return true, fmt.Sprintf("oldfields=%s", oldFields), nil
 			}
-		}
-		cudCtx := logger.WithContextAttrs(ctx, map[string]any{
-			"rectype": cud.QName(),
-			"recid":   cud.ID(),
-			"op":      cudOp(cud),
-		})
-		logger.VerboseCtx(cudCtx, fmt.Sprintf("newfields=%s, oldfields=%s", newFieldsJSON, oldFieldsJSON))
-	}
-	return nil
-}
+			return true, "oldfields={}", nil
+		},
+		"",
+	)
 
-func cudOp(cud istructs.ICUDRow) string {
-	if cud.IsNew() {
-		return "create"
-	}
-	if cud.IsDeactivated() {
-		return "deactivate"
-	}
-	if cud.IsActivated() {
-		return "activate"
-	}
-	return "update"
+	// will not use the ctx enriched by woffset, poffset, evqname for now
+	_ = enrichedLogCtx
+	return err
 }
 
 func getWSDesc(_ context.Context, cmd *cmdWorkpiece) (err error) {
@@ -499,13 +479,18 @@ func (cmdProc *cmdProc) getWorkspace(_ context.Context, cmd *cmdWorkpiece) (err 
 	return nil
 }
 
+func setPLogOffset(_ context.Context, cmd *cmdWorkpiece) (err error) {
+	cmd.pLogOffset = cmd.appPartition.nextPLogOffset
+	return nil
+}
+
 func (cmdProc *cmdProc) getRawEventBuilder(_ context.Context, cmd *cmdWorkpiece) (err error) {
 	grebp := istructs.GenericRawEventBuilderParams{
 		HandlingPartition: cmd.cmdMes.PartitionID(),
 		Workspace:         cmd.cmdMes.WSID(),
 		QName:             cmd.cmdQName,
 		RegisteredAt:      istructs.UnixMilli(cmdProc.time.Now().UnixMilli()),
-		PLogOffset:        cmd.appPartition.nextPLogOffset,
+		PLogOffset:        cmd.pLogOffset,
 		WLogOffset:        cmd.workspace.NextWLogOffset,
 	}
 

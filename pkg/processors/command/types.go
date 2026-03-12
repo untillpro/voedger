@@ -92,6 +92,7 @@ type cmdWorkpiece struct {
 	reapplier                    istructs.IEventReapplier
 	commandCtxStorage            istructs.IStateValue
 	cmdResToLog                  string
+	pLogOffset                   istructs.Offset // need for logging
 }
 
 type implIDGeneratorReporter struct {

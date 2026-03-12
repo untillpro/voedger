@@ -60,6 +60,7 @@ type implIBLOBMessage_Read struct {
 
 	// APIv1
 	existingBLOBIDOrSUUID string
+	rLimiter              iblobstorage.RLimiterType
 
 	// APIv2
 	ownerRecord      appdef.QName
@@ -111,3 +112,5 @@ type implIRequestHandler struct {
 func (m *implIBLOBMessage_base) Release() {
 	close(m.done)
 }
+
+type IRequestHandlerPtr *IRequestHandler

@@ -6,6 +6,7 @@
 package sys_it
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
 	"time"
@@ -57,6 +58,26 @@ func TestBasicUsage_ChangePassword_APIv2(t *testing.T) {
 	// expect no errors on login with new password
 	login.Pwd = "2"
 	vit.SignIn(login)
+
+	t.Run("passwords with special JSON characters", func(t *testing.T) {
+		vit.TimeAdd(time.Minute) // reset rate-limit window before this password change
+		specialPwd := `p"a\ss`
+		specialLoginName := vit.NextName()
+		specialLogin := vit.SignUp(specialLoginName, specialPwd, istructs.AppQName_test1_app1)
+		vit.SignIn(specialLogin)
+
+		bodyBytes, err := json.Marshal(map[string]any{
+			"login":       specialLogin.Name,
+			"oldPassword": specialPwd,
+			"newPassword": specialPwd + "x",
+		})
+		require.NoError(t, err)
+		resp := vit.POST("api/v2/apps/test1/app1/users/change-password", string(bodyBytes))
+		require.Empty(t, resp.Body)
+
+		specialLogin.Pwd = specialPwd + "x"
+		vit.SignIn(specialLogin)
+	})
 }
 
 func TestChangePasswordErrors_APIv2(t *testing.T) {

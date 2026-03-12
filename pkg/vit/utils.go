@@ -63,8 +63,13 @@ func (vit *VIT) signUp(login Login, opts ...httpu.ReqOptFunc) {
 	}
 	verifiedEmailToken, err := vit.ITokens.IssueToken(istructs.AppQName_sys_registry, 10*time.Minute, &p)
 	require.NoError(vit.T, err)
-	body := fmt.Sprintf(`{"verifiedEmailToken": "%s","password": "%s","displayName": "%s"}`, verifiedEmailToken, login.Pwd, login.Name)
-	vit.Func(fmt.Sprintf("api/v2/apps/%s/%s/users", login.AppQName.Owner(), login.AppQName.Name()), body, opts...)
+	bodyBytes, err := json.Marshal(map[string]any{
+		"verifiedEmailToken": verifiedEmailToken,
+		"password":           login.Pwd,
+		"displayName":        login.Name,
+	})
+	require.NoError(vit.T, err)
+	vit.Func(fmt.Sprintf("api/v2/apps/%s/%s/users", login.AppQName.Owner(), login.AppQName.Name()), string(bodyBytes), opts...)
 }
 
 func WithClusterID(clusterID istructs.ClusterID) signUpOptFunc {
@@ -291,7 +296,9 @@ func (vit *VIT) SignIn(login Login, optFuncs ...signInOptFunc) (prn *Principal) 
 	}
 	deadline := time.Now().Add(getWorkspaceInitAwaitTimeout())
 	for time.Now().Before(deadline) {
-		body := fmt.Sprintf(`{"login": "%s","password": "%s"}`, login.Name, login.Pwd)
+		bodyBytes, err := json.Marshal(map[string]any{"login": login.Name, "password": login.Pwd})
+		require.NoError(vit.T, err)
+		body := string(bodyBytes)
 		resp := vit.POST(fmt.Sprintf("api/v2/apps/%s/%s/auth/login", login.AppQName.Owner(), login.AppQName.Name()), body,
 			httpu.Expect409(),
 			httpu.Expect503(),
@@ -303,7 +310,7 @@ func (vit *VIT) SignIn(login Login, optFuncs ...signInOptFunc) (prn *Principal) 
 		}
 		require.Equal(vit.T, http.StatusOK, resp.HTTPResp.StatusCode)
 		result := make(map[string]interface{})
-		err := json.Unmarshal([]byte(resp.Body), &result)
+		err = json.Unmarshal([]byte(resp.Body), &result)
 		require.NoError(vit.T, err)
 		profileWSID := istructs.WSID(result["profileWSID"].(float64))
 		token := result["principalToken"].(string)

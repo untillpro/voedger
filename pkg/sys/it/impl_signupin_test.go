@@ -75,6 +75,12 @@ func TestBasicUsage_SignUpIn(t *testing.T) {
 		require.NoError(err)
 		require.Equal(authnz.DefaultPrincipalTokenExpiration, gp.Duration)
 	})
+
+	t.Run("sign up and sign in with special JSON characters in password", func(t *testing.T) {
+		specialLoginName := vit.NextName()
+		specialLogin := vit.SignUp(specialLoginName, `p"a\ss`, istructs.AppQName_test1_app1)
+		vit.SignIn(specialLogin)
+	})
 }
 
 func TestTTL(t *testing.T) {

@@ -22,6 +22,8 @@ type syncActualizerWorkpiece interface {
 	pipeline.IWorkpiece
 	Event() istructs.IPLogEvent
 	AppPartition() appparts.IAppPartition
+	Context() context.Context // is cmd.cmdMes.RequestCtx() from command processor
+	PLogOffset() istructs.Offset
 }
 
 func syncActualizerFactory(conf SyncActualizerConf, projectors istructs.Projectors) pipeline.ISyncOperator {
@@ -79,10 +81,15 @@ func newSyncBranch(conf SyncActualizerConf, projector istructs.Projector, servic
 				appDef := appPart.AppStructs().AppDef()
 				prj := appdef.Projector(appDef.Type, projector.Name)
 				event := s.PLogEvent()
-				if !ProjectorEvent(prj, event) {
+				triggeredByQName := ProjectorEvent(prj, event)
+				if triggeredByQName == appdef.NullQName {
 					return nil
 				}
-				return appPart.Invoke(ctx, projector.Name, s, s)
+				enrichedLogCtx, err := logEventAndCUDs(work.Context(), event, work.PLogOffset(), appDef, triggeredByQName)
+				if err != nil {
+					return err
+				}
+				return appPart.Invoke(enrichedLogCtx, projector.Name, s, s)
 			}),
 		pipeline.WireFunc("IntentsValidator", func(_ context.Context, _ pipeline.IWorkpiece) (err error) {
 			return s.ValidateIntents()

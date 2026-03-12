@@ -883,6 +883,8 @@ func TestLogEventAndCUDs(t *testing.T) {
 		out = buf.String()
 		require.Contains(out, fmt.Sprintf("recid=%d", newID))
 		require.Contains(out, "op=update")
+		require.Contains(out, "newfields=")
+		require.Contains(out, "oldfields=")
 		require.Contains(out, "world")
 		require.Contains(out, "hello")
 	})

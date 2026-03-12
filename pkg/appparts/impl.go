@@ -176,7 +176,7 @@ func (aps *apps) DeployApp(name appdef.AppQName, extModuleURLs map[string]*url.U
 	a.deploy(def, extModuleURLs, appStructs, engines)
 }
 
-func (aps *apps) DeployAppPartitions(name appdef.AppQName, ids []istructs.PartitionID) {
+func (aps *apps) DeployAppPartitions(name appdef.AppQName, partitionIDs []istructs.PartitionID) {
 	aps.mx.RLock()
 	a, ok := aps.apps[name]
 	aps.mx.RUnlock()
@@ -186,15 +186,15 @@ func (aps *apps) DeployAppPartitions(name appdef.AppQName, ids []istructs.Partit
 	}
 
 	wg := sync.WaitGroup{}
-	for _, id := range ids {
+	for _, partitionID := range partitionIDs {
 		var p *appPartitionRT
 
 		a.mx.Lock()
-		if exists, ok := a.parts[id]; ok {
+		if exists, ok := a.parts[partitionID]; ok {
 			p = exists
 		} else {
-			p = newAppPartitionRT(a, id)
-			a.parts[id] = p
+			p = newAppPartitionRT(a, partitionID)
+			a.parts[partitionID] = p
 		}
 		a.mx.Unlock()
 

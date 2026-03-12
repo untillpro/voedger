@@ -21,6 +21,7 @@ import (
 	"github.com/voedger/voedger/pkg/goutils/logger"
 	"github.com/voedger/voedger/pkg/goutils/strconvu"
 	"github.com/voedger/voedger/pkg/iblobstorage"
+	"github.com/voedger/voedger/pkg/iblobstoragestg"
 	"github.com/voedger/voedger/pkg/istructs"
 	"github.com/voedger/voedger/pkg/itokens"
 	payloads "github.com/voedger/voedger/pkg/itokens-payloads"
@@ -195,8 +196,21 @@ func requestHandlerV2_changePassword(numsAppsWorkspaces map[appdef.AppQName]istr
 			return
 		}
 		pseudoWSID := coreutils.GetPseudoWSID(istructs.NullWSID, login, istructs.CurrentClusterID())
-		body := fmt.Sprintf(`{"args":{"Login":"%s","AppName":"%s"},"unloggedArgs":{"OldPassword":"%s","NewPassword":"%s"}}`,
-			login, busRequest.AppQName, oldPassword, newPassword)
+		bodyBytes, err := json.Marshal(map[string]any{
+			"args": map[string]any{
+				"Login":   login,
+				"AppName": busRequest.AppQName.String(),
+			},
+			"unloggedArgs": map[string]any{
+				"OldPassword": oldPassword,
+				"NewPassword": newPassword,
+			},
+		})
+		if err != nil {
+			ReplyCommonError(rw, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		body := string(bodyBytes)
 		url := fmt.Sprintf("api/v2/apps/sys/registry/workspaces/%d/commands/registry.ChangePassword", pseudoWSID)
 		if _, err = federation.Func(url, body, httpu.WithMethod(http.MethodPost), httpu.WithDiscardResponse()); err != nil { // null auth
 			replyErr(rw, err)
@@ -226,8 +240,23 @@ func requestHandlerV2_create_user(numsAppsWorkspaces map[appdef.AppQName]istruct
 		pseudoWSID := coreutils.GetPseudoWSID(istructs.NullWSID, email, istructs.CurrentClusterID())
 		url := fmt.Sprintf("api/v2/apps/sys/registry/workspaces/%d/commands/registry.CreateEmailLogin", pseudoWSID)
 		wsKindInitData := fmt.Sprintf(`{"DisplayName":%q}`, displayName)
-		body := fmt.Sprintf(`{"args":{"Email":"%s","AppName":"%s","SubjectKind":%d,"WSKindInitializationData":%q,"ProfileCluster":%d},"unloggedArgs":{"Password":"%s"}}`,
-			verifiedEmailToken, busRequest.AppQName, istructs.SubjectKind_User, wsKindInitData, istructs.CurrentClusterID(), pwd)
+		bodyBytes, err := json.Marshal(map[string]any{
+			"args": map[string]any{
+				"Email":                    verifiedEmailToken,
+				"AppName":                  busRequest.AppQName.String(),
+				"SubjectKind":              istructs.SubjectKind_User,
+				"WSKindInitializationData": wsKindInitData,
+				"ProfileCluster":           istructs.CurrentClusterID(),
+			},
+			"unloggedArgs": map[string]any{
+				"Password": pwd,
+			},
+		})
+		if err != nil {
+			ReplyCommonError(rw, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		body := string(bodyBytes)
 		sysToken, err := payloads.GetSystemPrincipalToken(iTokens, istructs.AppQName_sys_registry)
 		if err != nil {
 			// notest
@@ -342,7 +371,7 @@ func requestHandlerV2_blobs_read(blobRequestHandler blobprocessor.IRequestHandle
 		if !blobRequestHandler.HandleRead_V2(data.appQName, data.wsid, data.header, req.Context(),
 			newBLOBOKResponseIniter(rw, http.StatusOK), func(sysErr coreutils.SysError) {
 				replyErr(rw, sysErr)
-			}, ownerRecord, ownerRecordField, istructs.RecordID(ownerID), requestSender) {
+			}, ownerRecord, ownerRecordField, istructs.RecordID(ownerID), requestSender, iblobstoragestg.RLimiter_Null) {
 			replyServiceUnavailable(rw)
 		}
 	})
@@ -356,7 +385,7 @@ func requestHandlerV2_tempblobs_read(blobRequestHandler blobprocessor.IRequestHa
 		if !blobRequestHandler.HandleReadTemp_V2(data.appQName, data.wsid, data.header, req.Context(),
 			newBLOBOKResponseIniter(rw, http.StatusOK), func(sysErr coreutils.SysError) {
 				replyErr(rw, sysErr)
-			}, requestSender, suuid) {
+			}, requestSender, suuid, iblobstoragestg.RLimiter_Null) {
 			replyServiceUnavailable(rw)
 		}
 	})

@@ -321,6 +321,46 @@ func Test_CtxFuncs_StandardAttrs(t *testing.T) {
 	require.Contains(stdout, "extension=c.sys.UploadBLOBHelper")
 }
 
+func Test_CtxFuncs_SLogLevels(t *testing.T) {
+	testCases := []struct {
+		name       string
+		level      logger.TLogLevel
+		logFn      func(context.Context, ...interface{})
+		msg        string
+		wantLevel  string
+		wantStdErr bool
+	}{
+		{name: "ErrorCtx", level: logger.LogLevelError, logFn: logger.ErrorCtx, msg: "error msg", wantLevel: "ERROR", wantStdErr: true},
+		{name: "WarningCtx", level: logger.LogLevelWarning, logFn: logger.WarningCtx, msg: "warning msg", wantLevel: "WARN"},
+		{name: "InfoCtx", level: logger.LogLevelInfo, logFn: logger.InfoCtx, msg: "info msg", wantLevel: "INFO"},
+		{name: "VerboseCtx", level: logger.LogLevelVerbose, logFn: logger.VerboseCtx, msg: "verbose msg", wantLevel: "VERBOSE"},
+		{name: "TraceCtx", level: logger.LogLevelTrace, logFn: logger.TraceCtx, msg: "trace msg", wantLevel: "TRACE"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			require := require.New(t)
+			defer logger.SetLogLevelWithRestore(tc.level)()
+
+			stdout, stderr := captureCtxOutput(func() {
+				tc.logFn(context.Background(), tc.msg)
+			})
+
+			check := func(shouldBeEmpty, shouldBeNotEmpty string) {
+				require.Empty(shouldBeEmpty)
+				require.Contains(shouldBeNotEmpty, "level="+tc.wantLevel)
+				require.Contains(shouldBeNotEmpty, "msg=\""+tc.msg+"\"")
+			}
+
+			if tc.wantStdErr {
+				check(stdout, stderr)
+			} else {
+				check(stderr, stdout)
+			}
+		})
+	}
+}
+
 func Test_CtxFuncs_LevelFiltering(t *testing.T) {
 	ctx := context.Background()
 
