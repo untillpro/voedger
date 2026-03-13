@@ -57,7 +57,7 @@ A key-value pair that provides additional context to log entries. Attributes are
 
 - **extension** (string): Extension or function being executed
   - Constant: `logger.LogAttr_Extension`
-  - Example: "c.sys.UploadBLOBHelper", "q.sys.Collection", "sys._Docs"
+  - Example: "c.sys.UploadBLOBHelper", "q.sys.Collection", "sys._Docs", "sys._CP"
     - "sys._Docs": API v2, working with documents
   - Set by: Router based on request resource/QName or API path
   - Purpose: Identify specific command/query/function in logs
@@ -105,46 +105,39 @@ A key-value pair that provides additional context to log entries. Attributes are
   - `wsid`: Workspace ID from validated data
   - `extension`: Resource name (API v1) or QName/API path (API v2)
   - `origin`: HTTP Origin header value
-- Logs "request accepted" at Verbose level when request is received
-- Logs errors when sending request to VVM fails at Error level with body
+- Logs "request accepted" at Verbose level when request is received: `router.request_accepted`
+- Logs errors when sending request to VVM fails at Error level with body: `router.request_error`
 
 ### Command Processor
 
 **Request processing:**
 
-- Receives context with attributes from Router
-- Logs command handling errors at Error level with compacted request body
-- Logs successful command execution at Verbose level with result and compacted body
-- Logs partition restart warnings at Warning level with partition ID and error
+- Receives context with attributes from Router: `cp.received`
+- Logs command handling errors at Error level with compacted request body: `cp.error`
+- Logs successful command execution at Verbose level with result and compacted body: `cp.success`
 
 **Event and CUD logging:**
 
 - Uses shared `processors.LogEventAndCUDs()` utility
 - Enriches context with event attributes: `woffset`, `poffset`, `evqname`
-- Logs event arguments as JSON
+- Logs event arguments as JSON after saving to PLog: `cp.plog_saved`
 - For each CUD, enriches context with: `rectype`, `recid`, `op`
-- Logs new fields as JSON and old fields as JSON (for updates)
+- Logs new fields as JSON and old fields as JSON (for updates): `cp.plog_saved.log_cud`
 - Guarded by `logger.IsVerbose()` check
 
 **Partition recovery:**
 
-- Logs partition recovery completion at Info level with nextPLogOffset and workspaces JSON
-
-**Metrics reported:**
-
-- `CommandsTotal`: Total commands processed
-- `CommandsSeconds`: Command processing duration
-- `ErrorsTotal`: Total errors encountered
-- `ProjectorsSeconds`: Sync projector execution duration
+- Logs partition restart warnings at Warning level with partition ID and error: `cp.partition_recovery`
+- Logs partition recovery completion at Info level with nextPLogOffset and workspaces JSON: `cp.partition_recovery_complete`  
+- Extension: "sys._Recovery"
 
 ### Query Processor
 
 **Request processing:**
 
-- Receives context with attributes from Router
-- Logs query execution errors at Error level with WSID and QName
-- Logs rowsProcessor errors at Error level
-- Logs response sending errors at Error level
+- Receives context with attributes from Router: `qp.received`
+- Logs query execution errors at Error level with WSID and QName: `qp.error`
+- Logs successful query execution at Verbose level: `qp.success`
 
 **Current limitations:**
 
