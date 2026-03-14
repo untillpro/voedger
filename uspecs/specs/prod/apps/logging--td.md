@@ -69,12 +69,62 @@ A key-value pair that provides additional context to log entries. Attributes are
 
 ## Per-component scenarios
 
+### Server loading
+
+#### HTTP servers launch
+
+##### HTTP root context
+
+Derived from VVM context.
+
+- Attribs:
+  - `vapp="sys/voedger"`
+  - `extension` = server name: `"HTTP server"`, `"Admin HTTP server"`, `"HTTPS server"`, or `"ACME server"`
+- Used for logging server start/stop operations
+- Used as base context for all incoming HTTP requests
+
+##### HTTP server stages logging
+
+Uses HTTP server root context
+
+- router params validation failure: level `Error`, stage `endpoint.validation`, msg `<error message>`
+- start accepting connections success: level `Info`, stage `endpoint.listen`, msg `<addr>:<port>`
+- start accepting connections failure: level `Error`, stage `endpoint.listen`, msg `<error message>`
+- server stops accepting connections: level `Info`, stage `endpoint.shutdown`, msg empty
+- error on http server shutdown: level `Error`, stage `endpoint.shutdown`, msg `<error message>`
+- server exits unexpectedly: level `Error`, stage `endpoint.unexpectedstop`, msg `Serve() error: <err>` or `ServeTLS() error: <err>`
+
+#### Application deployment
+
+`btstrp.Bootstrap()` is called. Uses `vapp="sys/voedger"`, `extension="sys._Bootstrap"` attribs.
+
+- level `Info`, stage `bootstrap`, msg `"started"`
+- level `Info`, stage `bootstrap`, msg `"cluster app workspace initialized"`
+- for each built-in and sidecar app: level `Info`, stage `bootstrap.appdeploy`, msg `"<appQName>"`
+- for each app partition: level `Info`, stage `bootstrap.apppartdeploy`, msg `"<appQName>/<partID>"`
+- level `Info`, stage `bootstrap`, msg `"completed"`
+- on app deployment failure: panics with `"failed to deploy app <appName>: <error>"` (no logging)
+
+#### Leadership acquisition
+
+Uses `vapp="sys/voedger"`, `extension="sys._Elections"`, `key=<n>` attribs.
+
+- on each attempt when another node holds leadership: level `Verbose`, stage `leadership.acquire`, msg `"leadership already acquired by someone else"`
+- on storage error: level `Error`, stage `leadership.acquire`, msg `"InsertIfNotExist failed: <err>"`
+- on acquire success: level `Info`, stage `leadership.acquire`, msg `"success"`
+
+#### Leadership maintenance
+
+Uses `vapp="sys/voedger"`, `extension="sys._Elections"`, `key=<n>` attribs.
+
+- first 10 renewal ticks: level `Verbose`, stage `leadership.maintain`, msg `"renewing leadership"`
+- every 200 ticks after initial 10: level `Verbose`, stage `leadership.maintain`, msg `"still leader for <duration>"`
+- on transient storage error (retried every second within the interval): level `Error`, stage `leadership.maintain`, msg `"compareAndSwap error: <err>"`
+- on leadership stolen: level `Error`, stage `leadership.maintain`, msg `"compareAndSwap !ok => release"`
+- on all retries exhausted within interval: level `Error`, stage `leadership.maintain`, msg `"retry deadline reached, releasing. Last error: <err>"`
+- on error after `processKillThreshold` (TTL/4), before `os.Exit(1)`: level `Error`, stage `leadership.maintain`, msg `"the process is still alive after the time alloted for graceful shutdown -> terminating..."`
+
 ### Router
-
-**Initialization:**
-
-- Creates root log context with `vapp="sys/voedger"` in `preRun()`
-- Sets as base context for all HTTP connections
 
 **Request handling:**
 
