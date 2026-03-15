@@ -53,11 +53,10 @@ A key-value pair that provides additional context to log entries. Attributes are
     - Router: based on request resource/QName
     - Actualizer: based on event QName
 
-- **stage** (string): Processing stage name
-  - Purpose: Identify which stage of processing a log entry corresponds to
-  - Examples: `request parsed`, `before save plog`, `after save plog`
-    - `latency1`: `routing` stage for first response latency measurement, milliseconds
-  - Set by: side that wants to log something, provided as the `stage` parameter of `logger.*Ctx()` funcs
+- **stage** (string): Processing stage within the component that emits the log entry
+  - Constant: `logger.LogAttr_Stage`
+  - Purpose: Categorize log entries by processing phase, enabling filtering and inter-stage latency measurement across components
+  - Set by: caller, provided as the `stage` parameter of `logger.*Ctx()` funcs
 
 ## General scenarios
 
@@ -233,7 +232,7 @@ Stage is `ap`
 
 - Any context-aware error happens -> the error is wrapped into struct `errWithCtx{error, logCtx}`
 - The error is not `errWithCtx` -> fall back to VVM context
-- The resulting context is used on `logger.ErrorCtx()`
+- The resulting context is used on `logger.ErrorCtx()` with stage `ap`
 
 ## Key components
 
@@ -313,7 +312,7 @@ Automatically append context attributes and stage to log entries using slog.
 
 - **Parameters:**
   - `ctx`: Context containing logging attributes (vapp, reqid, wsid, extension, etc.)
-  - `stage`: Processing stage name (e.g., "routing", "cp.received", "cp.plog_saved")
+  - `stage`: Processing stage that emits the log entry; added to the log as the `stage` slog attribute with key `logger.LogAttr_Stage`. Convention: `<component>.<substage>` (e.g., `"routing"`, `"cp.received"`, `"cp.plog_saved"`)
   - `args`: Message components to be formatted via `fmt.Sprint()`
   - `skipStackFrames` (LogCtx only): Number of stack frames to skip for source location
   - `level` (LogCtx only): Log level for the entry
@@ -333,9 +332,9 @@ Automatically append context attributes and stage to log entries using slog.
 
 - **Usage example:**
   ```go
-  logger.VerboseCtx(ctx, "request parsed", "processing command")
-  logger.ErrorCtx(ctx, "validation failed", "invalid workspace ID:", wsid)
-  logger.InfoCtx(ctx, "partition recovered", "nextPLogOffset:", offset)
+  logger.VerboseCtx(ctx, "routing", "request accepted")
+  logger.ErrorCtx(ctx, "cp.error", "command failed:", err)
+  logger.InfoCtx(ctx, "cp.partition_recovery", "completed, nextPLogOffset:", offset)
   ```
 
 **Standard functions ([logger.go](../../../../pkg/goutils/logger/logger.go#L44))**
