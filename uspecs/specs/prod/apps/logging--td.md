@@ -66,62 +66,58 @@ A key-value pair that provides additional context to log entries. Attributes are
   - `stage` value is appended to the log as `stage` attribute
   - Message args are formatted via `fmt.Sprint()` and used as the log message
 
-## Per-component scenarios
+---
 
-### Server loading
+## Per-component logging
 
-#### HTTP servers launch
+### Server core events
 
-##### HTTP root context
+### HTTP
 
-Derived from VVM context.
+HTTP root context is derived from VVM context:
 
-- Attribs:
-  - `vapp="sys/voedger"`
-  - `extension` = server name: `"HTTP server"`, `"Admin HTTP server"`, `"HTTPS server"`, or `"ACME server"`
-- Used for logging server start/stop operations
-- Used as base context for all incoming HTTP requests
+- `vapp="sys/voedger"`
+- `extension` = server name: `sys._HTTPServer`, `sys._AdminHTTPServer`, `sys._HTTPSServer`, or `sys._ACMEServer`
+Used for logging server start/stop operations and for all incoming HTTP requests:
 
-##### HTTP server stages logging
-
-Uses HTTP server root context
-
-- router params validation failure: level `Error`, stage `endpoint.validation`, msg `<error message>`
-- start accepting connections success: level `Info`, stage `endpoint.listen`, msg `<addr>:<port>`
-- start accepting connections failure: level `Error`, stage `endpoint.listen`, msg `<error message>`
-- server stops accepting connections: level `Info`, stage `endpoint.shutdown`, msg empty
-- error on http server shutdown: level `Error`, stage `endpoint.shutdown`, msg `<error message>`
-- server exits unexpectedly: level `Error`, stage `endpoint.unexpectedstop`, msg `Serve() error: <err>` or `ServeTLS() error: <err>`
+- Router params validation failure: level `Error`, stage `endpoint.validation`, msg `<error message>`
+- Start accepting connections success: level `Info`, stage `endpoint.listen.start`, msg `<addr>:<port>`
+- Start accepting connections failure: level `Error`, stage `endpoint.listen.error`, msg `<error message>`
+- Server stops accepting connections: level `Info`, stage `endpoint.shutdown`, msg (empty)
+- Error on http server shutdown: level `Error`, stage `endpoint.shutdown.error`, msg `<error message>`
+- Server exits unexpectedly: level `Error`, stage `endpoint.unexpectedstop`, msg `Serve() error: <err>` or `ServeTLS() error: <err>`
 
 #### Application deployment
 
 `btstrp.Bootstrap()` is called. Uses `vapp="sys/voedger"`, `extension="sys._Bootstrap"` attribs.
 
-- level `Info`, stage `bootstrap`, msg `"started"`
-- level `Info`, stage `bootstrap`, msg `"cluster app workspace initialized"`
-- for each built-in and sidecar app: level `Info`, stage `bootstrap.appdeploy`, msg `"<appQName>"`
-- for each app partition: level `Info`, stage `bootstrap.apppartdeploy`, msg `"<appQName>/<partID>"`
-- level `Info`, stage `bootstrap`, msg `"completed"`
-- on app deployment failure: panics with `"failed to deploy app <appName>: <error>"` (no logging)
+- Bootstrap starts: level `Info`, stage `bootstrap`, msg `started`
+- Cluster app workspace initialized: level `Info`, stage `bootstrap`, msg `cluster app workspace initialized`
+- For each built-in and sidecar app: level `Info`, stage `bootstrap.appdeploy`, msg `<appQName>`
+- For each app partition: level `Info`, stage `bootstrap.apppartdeploy`, msg `<appQName>/<partID>`
+- Bootstrap completes: level `Info`, stage `bootstrap`, msg `completed`
+- On app deployment failure: panics with `failed to deploy app <appName>: <error>` (no logging)
 
 #### Leadership acquisition
 
-Uses `vapp="sys/voedger"`, `extension="sys._Elections"`, `key=<n>` attribs.
+Uses `vapp="sys/voedger"`, `extension="sys._Leadership"`, `key` attribs.
 
-- on each attempt when another node holds leadership: level `Verbose`, stage `leadership.acquire`, msg `"leadership already acquired by someone else"`
-- on storage error: level `Error`, stage `leadership.acquire`, msg `"InsertIfNotExist failed: <err>"`
-- on acquire success: level `Info`, stage `leadership.acquire`, msg `"success"`
+- On each attempt when another node holds leadership: level `Info`, stage `leadership.acquire.other`, msg `leadership already acquired by someone else`
+- On storage error: level `Error`, stage `leadership.acquire.error`, msg `InsertIfNotExist failed: <err>`
+- On acquire success: level `Info`, stage `leadership.acquire.success`, msg `success`
 
 #### Leadership maintenance
 
-Uses `vapp="sys/voedger"`, `extension="sys._Elections"`, `key=<n>` attribs.
+Uses `vapp="sys/voedger"`, `extension="sys._Leadership"`, `key` attribs.
 
-- first 10 renewal ticks: level `Verbose`, stage `leadership.maintain`, msg `"renewing leadership"`
-- every 200 ticks after initial 10: level `Verbose`, stage `leadership.maintain`, msg `"still leader for <duration>"`
-- on transient storage error (retried every second within the interval): level `Error`, stage `leadership.maintain`, msg `"compareAndSwap error: <err>"`
-- on leadership stolen: level `Error`, stage `leadership.maintain`, msg `"compareAndSwap !ok => release"`
-- on all retries exhausted within interval: level `Error`, stage `leadership.maintain`, msg `"retry deadline reached, releasing. Last error: <err>"`
-- on error after `processKillThreshold` (TTL/4), before `os.Exit(1)`: level `Error`, stage `leadership.maintain`, msg `"the process is still alive after the time alloted for graceful shutdown -> terminating..."`
+- First 10 renewal ticks: level `Verbose`, stage `leadership.maintain.10`, msg `renewing leadership`
+- Every 200 ticks after initial 10: level `Verbose`, stage `leadership.maintain.200`, msg `still leader for <duration>`
+- On transient storage error (retried every second within the interval): level `Error`, stage `leadership.maintain.stgerror`, msg `compareAndSwap error: <err>`
+- On leadership stolen: level `Error`, stage `leadership.maintain.stolen`, msg `compareAndSwap !ok => release`
+- On all retries exhausted within interval: level `Error`, stage `leadership.maintain.release`, msg `retry deadline reached, releasing. Last error: <err>`
+- On error after `processKillThreshold` (TTL/4), before `os.Exit(1)`: level `Error`, stage `leadership.maintain.terminating`, msg `the process is still alive after the time alloted for graceful shutdown -> terminating...`
+
+---
 
 ### Router
 
@@ -137,8 +133,12 @@ Uses `vapp="sys/voedger"`, `extension="sys._Elections"`, `key=<n>` attribs.
   - `wsid`: Workspace ID from validated data
   - `extension`: Resource name (API v1) or QName/API path (API v2)
   - `origin`: HTTP Origin header value
-- Logs `"request accepted"` at stage `routing` on level Verbose when request is received
-- Logs errors when sending request to VVM fails at Error level, stage `routing`
+- Request received: level `Verbose`, stage `routing.accepted`, msg (empty)
+- First response received from processor: level `Verbose`, stage `routing.latency1`, msg `<latency_ms>`
+- Error sending request to VVM: level `Error`, stage `routing.send2vvm.error`, msg `<error message>`
+- Error sending response to client: level `Error`, stage `routing.response.error`, msg `<error message>`
+
+---
 
 ### Command Processor
 
@@ -146,13 +146,11 @@ Uses `vapp="sys/voedger"`, `extension="sys._Elections"`, `key=<n>` attribs.
 
 The context with attributes is received from Router
 
-- Initially logs: stage `cp.received`, msg empty
 - Logs the event details right after successful write to PLog using `processors.LogEventAndCUDs()` providing `cp.plog_saved` as the stage, callback that returns `true`, `oldfields={...}` and `nil` error for each CUD
   - note: old fields for each CUD that came with http request. No old fields for CUDs created by the command
-- Logs the event right after successful write to PLog: stage `cp.plog_saved`, attribs `woffset`, `poffset`, `evname`,
 - Right before sending the response to the bus:
-  - Logs command handling errors at Error level with: stage `cp.error`, msg: error message, `body` attrib: compacted request body
-  - Logs successful command execution at Verbose level: stage `cp.success`, msg: command result
+  - Command handling error: level `Error`, stage `cp.error`, msg `<error message>`, `body`=`<compacted request body>`
+  - Command executed successfully: level `Verbose`, stage `cp.success`, msg `<command result>`
 - Additional log on errors:
   - if error happens on any of:
     - sync actualizers run
@@ -190,13 +188,14 @@ The context with attributes is received from Router
 
 **Partition recovery:**
 
-  - `vapp` attrib is replaced with `sys/voedger`
-  - `extension` attrib: `sys._Recovery`
-  - `partid` attrib: partition ID
-  - stage is `cp.partition_recovery` everywhere below:
-    - Logs partition recovery start at Info level, msg: `start`
-    - Logs partition recovery completion at Info level, msg: `completed`, nextPLogOffset and workspaces JSON
-    - Logs partition recovery failure at Error level, msg: error message
+- `vapp` attrib is replaced with `sys/voedger`
+- `extension` attrib: `sys._Recovery`
+- `partid` attrib: partition ID
+- Partition recovery start: level `Info`, stage `cp.partition_recovery.start`, msg (empty)
+- Partition recovery complete: level `Info`, stage `cp.partition_recovery.complete`, msg `completed`, nextPLogOffset and workspaces JSON
+- Partition recovery failure: level `Error`, stage `cp.partition_recovery.error`, msg `<error message>`
+
+---
 
 ### Query Processor
 
@@ -204,16 +203,20 @@ The context with attributes is received from Router
 
 The context with attributes is received from Router
 
-- Initially logs: stage `qp.received`, msg empty
-- Logs query execution errors at Error, stage: `qp.error`, msg: error message
-- Logs successful query execution at Verbose level, stage: `qp.success`, msg: empty
+- query execution error: level `Error`, stage `qp.error`, msg `<error message>`
+
+### Actualizer Sync Projectors
+
+// FIXME
 
 ### Actualizer (Async Projectors)
 
-**Initialization:**
+// FIXME
 
-- Creates base log context with `vapp` and `extension` (projector QName) when projector runtime starts
-- Context propagates from VVM context through actualizer deployment
+Attributes:
+
+- `vapp` is determined before event is sent to pipeline (asyncActualizer.pipeline), enriched context is sent to the pipeline
+- `extension` is determined inside the pipeline based on event QName, context is enriched
 
 **Event processing:**
 
@@ -221,7 +224,7 @@ Stage is `ap`
 
 - Determines if the projector triggered by the current event via `ProjectorEvent()`
 - Adds `wsid` to log context in `DoAsync()` when processing event
-- Uses shared `processors.LogEventAndCUDs()` utility with args:
+- Uses shared `processors.LogEventAndCUDs("ap")` utility with args:
   - cud callback filters CUDs based on trigger type:
     - Function-triggered: logs all CUDs
     - ODoc/ORecord-triggered: logs all CUDs
@@ -230,9 +233,13 @@ Stage is `ap`
 
 **Error handling:**
 
+//FIXME each projector logs its own errors with "ap.error" stage
+
 - Any context-aware error happens -> the error is wrapped into struct `errWithCtx{error, logCtx}`
 - The error is not `errWithCtx` -> fall back to VVM context
 - The resulting context is used on `logger.ErrorCtx()` with stage `ap`
+
+---
 
 ## Key components
 
@@ -250,7 +257,7 @@ Provides structured logging with context-aware attribute propagation.
   - `impl.go`: Implementation details (level checking, caller tracking, formatting)
 
 - **Key features:**
-  - Hierarchical log levels (Error, Warning, Info, Debug)
+  - Hierarchical log levels (Error, Warning, Info, Verbose, Trace)
   - Atomic level checking for thread-safe filtering
   - Automatic caller tracking (function name and line number)
   - Context-based attribute propagation
@@ -334,7 +341,7 @@ Automatically append context attributes and stage to log entries using slog.
   ```go
   logger.VerboseCtx(ctx, "routing", "request accepted")
   logger.ErrorCtx(ctx, "cp.error", "command failed:", err)
-  logger.InfoCtx(ctx, "cp.partition_recovery", "completed, nextPLogOffset:", offset)
+  logger.InfoCtx(ctx, "cp.partition_recovery.complete", "completed, nextPLogOffset:", offset)
   ```
 
 **Standard functions ([logger.go](../../../../pkg/goutils/logger/logger.go#L44))**
