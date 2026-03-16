@@ -46,23 +46,27 @@ type IErrUnwrapper interface {
 	Unwrap() []error
 }
 
-type CUDs struct {
-	Values []CUD `json:"cuds"`
+type CUDs []CUD
+
+func (c CUDs) MarshalJSON() ([]byte, error) {
+	b, err := json.Marshal([]CUD(c))
+	if err != nil {
+		return nil, err
+	}
+	const cuds = `{"cuds":`
+	out := make([]byte, 0, len(cuds)+len(b)+1)
+	out = append(out, cuds...)
+	out = append(out, b...)
+	out = append(out, '}')
+	return out, nil
 }
 
-func (c CUDs) MustToJSON() string {
-	v, err := c.ToJSON()
+func (c CUDs) ToJSON() string {
+	bb, err := json.Marshal(c)
 	if err != nil {
 		panic(err)
 	}
-	return v
-}
-func (c CUDs) ToJSON() (v string, err error) {
-	bb, err := json.Marshal(c)
-	if err != nil {
-		return
-	}
-	return string(bb), nil
+	return string(bb)
 }
 
 type CUD struct {

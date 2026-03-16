@@ -91,6 +91,7 @@ func (s *httpServer) prepareBasicServer(handler http.Handler) (err error) {
 		Handler:      handler,
 		ReadTimeout:  time.Duration(s.ReadTimeout) * time.Second,
 		WriteTimeout: time.Duration(s.WriteTimeout) * time.Second,
+		ErrorLog:     log.New(&annoyingErrorsFilter{log.Default().Writer()}, log.Default().Prefix(), log.Default().Flags()),
 	}
 	return nil
 }

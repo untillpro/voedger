@@ -79,10 +79,8 @@ func loggerLevelToSLogLevel(level TLogLevel) slog.Level {
 		return slog.LevelWarn
 	case LogLevelInfo:
 		return slog.LevelInfo
-	case LogLevelVerbose:
-		return slog.LevelDebug
 	default:
-		return slog.LevelDebug - slogLevelTrace
+		return slog.LevelDebug
 	}
 }
 

@@ -5,7 +5,6 @@
 package coreutils
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/voedger/voedger/pkg/appdef"
@@ -186,7 +185,7 @@ func CUDsToMap(event istructs.IDbEvent, appDef appdef.IAppDef, optFuncs ...CUDsO
 }
 
 func JSONMapToCUDBody(data []map[string]interface{}) string {
-	cuds := make([]CUD, 0, len(data))
+	cuds := make(CUDs, 0, len(data))
 	for _, record := range data {
 		c := CUD{
 			Fields: make(map[string]interface{}),
@@ -196,11 +195,7 @@ func JSONMapToCUDBody(data []map[string]interface{}) string {
 		}
 		cuds = append(cuds, c)
 	}
-	bb, err := json.Marshal(CUDs{Values: cuds})
-	if err != nil {
-		panic(err)
-	}
-	return string(bb)
+	return cuds.ToJSON()
 }
 
 func CheckValueByKind(val interface{}, kind appdef.DataKind) error {

@@ -333,8 +333,8 @@ func Test_CtxFuncs_SLogLevels(t *testing.T) {
 		{name: "ErrorCtx", level: logger.LogLevelError, logFn: logger.ErrorCtx, msg: "error msg", wantLevel: "ERROR", wantStdErr: true},
 		{name: "WarningCtx", level: logger.LogLevelWarning, logFn: logger.WarningCtx, msg: "warning msg", wantLevel: "WARN"},
 		{name: "InfoCtx", level: logger.LogLevelInfo, logFn: logger.InfoCtx, msg: "info msg", wantLevel: "INFO"},
-		{name: "VerboseCtx", level: logger.LogLevelVerbose, logFn: logger.VerboseCtx, msg: "verbose msg", wantLevel: "VERBOSE"},
-		{name: "TraceCtx", level: logger.LogLevelTrace, logFn: logger.TraceCtx, msg: "trace msg", wantLevel: "TRACE"},
+		{name: "VerboseCtx", level: logger.LogLevelVerbose, logFn: logger.VerboseCtx, msg: "verbose msg", wantLevel: "DEBUG"},
+		{name: "TraceCtx", level: logger.LogLevelTrace, logFn: logger.TraceCtx, msg: "trace msg", wantLevel: "DEBUG"},
 	}
 
 	for _, tc := range testCases {

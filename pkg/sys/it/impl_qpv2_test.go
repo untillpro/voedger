@@ -106,21 +106,19 @@ func prepareDailyIdx(t *testing.T, vit *it.VIT, ws *it.AppWorkspace) (resultOffs
 	}
 
 	cuds := coreutils.CUDs{
-		Values: []coreutils.CUD{
-			{
-				Fields: map[string]interface{}{
-					appdef.SystemField_ID:    istructs.RecordID(1),
-					appdef.SystemField_QName: it.QNameApp1_CDocCategory,
-					"name":                   "Awesome food",
-				},
+		{
+			Fields: map[string]interface{}{
+				appdef.SystemField_ID:    istructs.RecordID(1),
+				appdef.SystemField_QName: it.QNameApp1_CDocCategory,
+				"name":                   "Awesome food",
 			},
 		},
 	}
 	for i := range dd {
-		cuds.Values = append(cuds.Values, dd[i](i+2))
+		cuds = append(cuds, dd[i](i+2))
 	}
 	// force projection update
-	resp := vit.PostWS(ws, "c.sys.CUD", cuds.MustToJSON())
+	resp := vit.PostWS(ws, "c.sys.CUD", cuds.ToJSON())
 	resultOffsetOfCUD := resp.CurrentWLogOffset
 	// wait for the offset because server could send previous offset. It is guaranteed that the expected offset will eventually arrive
 	waitForOffset(t, resultOffsetOfCUD, offsetsChan)
@@ -367,210 +365,204 @@ func TestQueryProcessor2_Include(t *testing.T) {
 	}
 
 	cuds := coreutils.CUDs{
-		Values: []coreutils.CUD{
-			{
-				Fields: map[string]interface{}{
-					appdef.SystemField_ID:    istructs.RecordID(1),
-					appdef.SystemField_QName: it.QNameApp1_CDocCurrency,
-					it.Field_CharCode:        "EUR",
-					it.Field_Code:            978,
-				},
+		{
+			Fields: map[string]interface{}{
+				appdef.SystemField_ID:    istructs.RecordID(1),
+				appdef.SystemField_QName: it.QNameApp1_CDocCurrency,
+				it.Field_CharCode:        "EUR",
+				it.Field_Code:            978,
 			},
-			{
-				Fields: map[string]interface{}{
-					appdef.SystemField_ID:    istructs.RecordID(2),
-					appdef.SystemField_QName: it.QNameApp1_CDocCurrency,
-					it.Field_CharCode:        "GBP",
-					it.Field_Code:            826,
-				},
+		},
+		{
+			Fields: map[string]interface{}{
+				appdef.SystemField_ID:    istructs.RecordID(2),
+				appdef.SystemField_QName: it.QNameApp1_CDocCurrency,
+				it.Field_CharCode:        "GBP",
+				it.Field_Code:            826,
 			},
-			{
-				Fields: map[string]interface{}{
-					appdef.SystemField_ID:    istructs.RecordID(3),
-					appdef.SystemField_QName: it.QNameApp1_CDocCountry,
-					it.Field_Name:            "Spain",
-				},
+		},
+		{
+			Fields: map[string]interface{}{
+				appdef.SystemField_ID:    istructs.RecordID(3),
+				appdef.SystemField_QName: it.QNameApp1_CDocCountry,
+				it.Field_Name:            "Spain",
 			},
-			{
-				Fields: map[string]interface{}{
-					appdef.SystemField_ID:    istructs.RecordID(4),
-					appdef.SystemField_QName: it.QNameApp1_CDocCountry,
-					it.Field_Name:            "United Kingdom",
-				},
+		},
+		{
+			Fields: map[string]interface{}{
+				appdef.SystemField_ID:    istructs.RecordID(4),
+				appdef.SystemField_QName: it.QNameApp1_CDocCountry,
+				it.Field_Name:            "United Kingdom",
 			},
-			{
-				Fields: map[string]interface{}{
-					appdef.SystemField_ID:    istructs.RecordID(100),
-					appdef.SystemField_QName: it.QNameApp1_WDocClient,
-					it.Field_FirstName:       "Juan",
-					it.Field_LastName:        "Carlos",
-					it.Field_DOB:             dob("1988-01-03T12:00:00"),
-					it.Field_Wallet:          istructs.RecordID(101),
-					it.Field_Country:         istructs.RecordID(3),
-				},
+		},
+		{
+			Fields: map[string]interface{}{
+				appdef.SystemField_ID:    istructs.RecordID(100),
+				appdef.SystemField_QName: it.QNameApp1_WDocClient,
+				it.Field_FirstName:       "Juan",
+				it.Field_LastName:        "Carlos",
+				it.Field_DOB:             dob("1988-01-03T12:00:00"),
+				it.Field_Wallet:          istructs.RecordID(101),
+				it.Field_Country:         istructs.RecordID(3),
 			},
-			{
-				Fields: map[string]interface{}{
-					appdef.SystemField_ID:    istructs.RecordID(101),
-					appdef.SystemField_QName: it.QNameApp1_WDocWallet,
-					it.Field_Balance:         1000,
-					it.Field_Currency:        istructs.RecordID(1),
-					it.Field_Capabilities:    istructs.RecordID(102),
-				},
+		},
+		{
+			Fields: map[string]interface{}{
+				appdef.SystemField_ID:    istructs.RecordID(101),
+				appdef.SystemField_QName: it.QNameApp1_WDocWallet,
+				it.Field_Balance:         1000,
+				it.Field_Currency:        istructs.RecordID(1),
+				it.Field_Capabilities:    istructs.RecordID(102),
 			},
-			{
-				Fields: map[string]interface{}{
-					appdef.SystemField_ID:    istructs.RecordID(102),
-					appdef.SystemField_QName: it.QNameApp1_WDocCapabilities,
-					it.Field_Deposit:         true,
-					it.Field_Withdraw:        true,
-				},
+		},
+		{
+			Fields: map[string]interface{}{
+				appdef.SystemField_ID:    istructs.RecordID(102),
+				appdef.SystemField_QName: it.QNameApp1_WDocCapabilities,
+				it.Field_Deposit:         true,
+				it.Field_Withdraw:        true,
 			},
-			{
-				Fields: map[string]interface{}{
-					appdef.SystemField_ID:    istructs.RecordID(200),
-					appdef.SystemField_QName: it.QNameApp1_WDocClient,
-					it.Field_FirstName:       "John",
-					it.Field_LastName:        "Deer",
-					it.Field_DOB:             dob("2000-07-10T15:00:00"),
-					it.Field_Wallet:          istructs.RecordID(201),
-					it.Field_Country:         istructs.RecordID(4),
-				},
+		},
+		{
+			Fields: map[string]interface{}{
+				appdef.SystemField_ID:    istructs.RecordID(200),
+				appdef.SystemField_QName: it.QNameApp1_WDocClient,
+				it.Field_FirstName:       "John",
+				it.Field_LastName:        "Deer",
+				it.Field_DOB:             dob("2000-07-10T15:00:00"),
+				it.Field_Wallet:          istructs.RecordID(201),
+				it.Field_Country:         istructs.RecordID(4),
 			},
-			{
-				Fields: map[string]interface{}{
-					appdef.SystemField_ID:    istructs.RecordID(201),
-					appdef.SystemField_QName: it.QNameApp1_WDocWallet,
-					it.Field_Balance:         2000,
-					it.Field_Currency:        istructs.RecordID(2),
-				},
+		},
+		{
+			Fields: map[string]interface{}{
+				appdef.SystemField_ID:    istructs.RecordID(201),
+				appdef.SystemField_QName: it.QNameApp1_WDocWallet,
+				it.Field_Balance:         2000,
+				it.Field_Currency:        istructs.RecordID(2),
 			},
 		},
 	}
-	offset := vit.PostWS(ws, "c.sys.CUD", cuds.MustToJSON()).CurrentWLogOffset
+	offset := vit.PostWS(ws, "c.sys.CUD", cuds.ToJSON()).CurrentWLogOffset
 	waitForOffset(t, offset, offsetsChan)
 	unsubscribe()
 
 	cuds = coreutils.CUDs{
-		Values: []coreutils.CUD{
-			{
-				Fields: map[string]interface{}{
-					appdef.SystemField_ID:    istructs.RecordID(1),
-					appdef.SystemField_QName: it.QNameApp1_CDocCfg,
-					it.Field_Name:            "CfgA",
-				},
+		{
+			Fields: map[string]interface{}{
+				appdef.SystemField_ID:    istructs.RecordID(1),
+				appdef.SystemField_QName: it.QNameApp1_CDocCfg,
+				it.Field_Name:            "CfgA",
 			},
-			{
-				Fields: map[string]interface{}{
-					appdef.SystemField_ID:    istructs.RecordID(2),
-					appdef.SystemField_QName: it.QNameApp1_CDocCfg,
-					it.Field_Name:            "CfgB",
-				},
+		},
+		{
+			Fields: map[string]interface{}{
+				appdef.SystemField_ID:    istructs.RecordID(2),
+				appdef.SystemField_QName: it.QNameApp1_CDocCfg,
+				it.Field_Name:            "CfgB",
 			},
-			{
-				Fields: map[string]interface{}{
-					appdef.SystemField_ID:    istructs.RecordID(3),
-					appdef.SystemField_QName: it.QNameApp1_CDocCfg,
-					it.Field_Name:            "CfgBatch",
-				},
+		},
+		{
+			Fields: map[string]interface{}{
+				appdef.SystemField_ID:    istructs.RecordID(3),
+				appdef.SystemField_QName: it.QNameApp1_CDocCfg,
+				it.Field_Name:            "CfgBatch",
 			},
-			{
-				Fields: map[string]interface{}{
-					appdef.SystemField_ID:    istructs.RecordID(4),
-					appdef.SystemField_QName: it.QNameApp1_CDocBatch,
-					it.Field_Number:          101,
-					it.Field_Cfg:             istructs.RecordID(3),
-				},
+		},
+		{
+			Fields: map[string]interface{}{
+				appdef.SystemField_ID:    istructs.RecordID(4),
+				appdef.SystemField_QName: it.QNameApp1_CDocBatch,
+				it.Field_Number:          101,
+				it.Field_Cfg:             istructs.RecordID(3),
 			},
-			{
-				Fields: map[string]interface{}{
-					appdef.SystemField_ID:    istructs.RecordID(5),
-					appdef.SystemField_QName: it.QNameApp1_CDocBatch,
-					it.Field_Number:          102,
-					it.Field_Cfg:             istructs.RecordID(3),
-				},
+		},
+		{
+			Fields: map[string]interface{}{
+				appdef.SystemField_ID:    istructs.RecordID(5),
+				appdef.SystemField_QName: it.QNameApp1_CDocBatch,
+				it.Field_Number:          102,
+				it.Field_Cfg:             istructs.RecordID(3),
 			},
-			{
-				Fields: map[string]interface{}{
-					appdef.SystemField_ID:    istructs.RecordID(6),
-					appdef.SystemField_QName: it.QNameApp1_CDocBatch,
-					it.Field_Number:          103,
-					it.Field_Cfg:             istructs.RecordID(3),
-				},
+		},
+		{
+			Fields: map[string]interface{}{
+				appdef.SystemField_ID:    istructs.RecordID(6),
+				appdef.SystemField_QName: it.QNameApp1_CDocBatch,
+				it.Field_Number:          103,
+				it.Field_Cfg:             istructs.RecordID(3),
 			},
 		},
 	}
-	resp := vit.PostWS(ws, "c.sys.CUD", cuds.MustToJSON())
+	resp := vit.PostWS(ws, "c.sys.CUD", cuds.ToJSON())
 	cfgAID := resp.NewIDs["1"]
 	cfgBID := resp.NewIDs["2"]
 	batch101ID := resp.NewIDs["4"]
 	batch102ID := resp.NewIDs["5"]
 
 	cuds = coreutils.CUDs{
-		Values: []coreutils.CUD{
-			{
-				Fields: map[string]interface{}{
-					appdef.SystemField_ID:        istructs.RecordID(1),
-					appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
-					appdef.SystemField_ParentID:  batch101ID,
-					appdef.SystemField_Container: it.Field_GroupA,
-					it.Field_Cfg:                 cfgAID,
-					it.Field_Name:                "TaskA1",
-				},
+		{
+			Fields: map[string]interface{}{
+				appdef.SystemField_ID:        istructs.RecordID(1),
+				appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
+				appdef.SystemField_ParentID:  batch101ID,
+				appdef.SystemField_Container: it.Field_GroupA,
+				it.Field_Cfg:                 cfgAID,
+				it.Field_Name:                "TaskA1",
 			},
-			{
-				Fields: map[string]interface{}{
-					appdef.SystemField_ID:        istructs.RecordID(2),
-					appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
-					appdef.SystemField_ParentID:  batch101ID,
-					appdef.SystemField_Container: it.Field_GroupA,
-					it.Field_Cfg:                 cfgAID,
-					it.Field_Name:                "TaskA2",
-				},
+		},
+		{
+			Fields: map[string]interface{}{
+				appdef.SystemField_ID:        istructs.RecordID(2),
+				appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
+				appdef.SystemField_ParentID:  batch101ID,
+				appdef.SystemField_Container: it.Field_GroupA,
+				it.Field_Cfg:                 cfgAID,
+				it.Field_Name:                "TaskA2",
 			},
-			{
-				Fields: map[string]interface{}{
-					appdef.SystemField_ID:        istructs.RecordID(3),
-					appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
-					appdef.SystemField_ParentID:  batch101ID,
-					appdef.SystemField_Container: it.Field_GroupB,
-					it.Field_Cfg:                 cfgBID,
-					it.Field_Name:                "TaskB1",
-				},
+		},
+		{
+			Fields: map[string]interface{}{
+				appdef.SystemField_ID:        istructs.RecordID(3),
+				appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
+				appdef.SystemField_ParentID:  batch101ID,
+				appdef.SystemField_Container: it.Field_GroupB,
+				it.Field_Cfg:                 cfgBID,
+				it.Field_Name:                "TaskB1",
 			},
-			{
-				Fields: map[string]interface{}{
-					appdef.SystemField_ID:        istructs.RecordID(4),
-					appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
-					appdef.SystemField_ParentID:  batch102ID,
-					appdef.SystemField_Container: it.Field_GroupA,
-					it.Field_Cfg:                 cfgAID,
-					it.Field_Name:                "TaskA1",
-				},
+		},
+		{
+			Fields: map[string]interface{}{
+				appdef.SystemField_ID:        istructs.RecordID(4),
+				appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
+				appdef.SystemField_ParentID:  batch102ID,
+				appdef.SystemField_Container: it.Field_GroupA,
+				it.Field_Cfg:                 cfgAID,
+				it.Field_Name:                "TaskA1",
 			},
-			{
-				Fields: map[string]interface{}{
-					appdef.SystemField_ID:        istructs.RecordID(5),
-					appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
-					appdef.SystemField_ParentID:  batch102ID,
-					appdef.SystemField_Container: it.Field_GroupA,
-					it.Field_Cfg:                 cfgAID,
-					it.Field_Name:                "TaskA2",
-				},
+		},
+		{
+			Fields: map[string]interface{}{
+				appdef.SystemField_ID:        istructs.RecordID(5),
+				appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
+				appdef.SystemField_ParentID:  batch102ID,
+				appdef.SystemField_Container: it.Field_GroupA,
+				it.Field_Cfg:                 cfgAID,
+				it.Field_Name:                "TaskA2",
 			},
-			{
-				Fields: map[string]interface{}{
-					appdef.SystemField_ID:        istructs.RecordID(6),
-					appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
-					appdef.SystemField_ParentID:  batch102ID,
-					appdef.SystemField_Container: it.Field_GroupB,
-					it.Field_Cfg:                 cfgBID,
-					it.Field_Name:                "TaskB1",
-				},
+		},
+		{
+			Fields: map[string]interface{}{
+				appdef.SystemField_ID:        istructs.RecordID(6),
+				appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
+				appdef.SystemField_ParentID:  batch102ID,
+				appdef.SystemField_Container: it.Field_GroupB,
+				it.Field_Cfg:                 cfgBID,
+				it.Field_Name:                "TaskB1",
 			},
 		},
 	}
-	resp = vit.PostWS(ws, "c.sys.CUD", cuds.MustToJSON())
+	resp = vit.PostWS(ws, "c.sys.CUD", cuds.ToJSON())
 	batch101TaskA1ID := resp.NewIDs["1"]
 	batch101TaskA2ID := resp.NewIDs["2"]
 	batch101TaskB1ID := resp.NewIDs["3"]
@@ -579,266 +571,260 @@ func TestQueryProcessor2_Include(t *testing.T) {
 	batch102TaskB1ID := resp.NewIDs["6"]
 
 	cuds = coreutils.CUDs{
-		Values: []coreutils.CUD{
-			{
-				Fields: map[string]interface{}{
-					appdef.SystemField_ID:        istructs.RecordID(1),
-					appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
-					appdef.SystemField_ParentID:  batch101TaskA1ID,
-					appdef.SystemField_Container: it.Field_GroupA,
-					it.Field_Cfg:                 cfgAID,
-					it.Field_Name:                "SubTaskA1_TaskA1",
-				},
+		{
+			Fields: map[string]interface{}{
+				appdef.SystemField_ID:        istructs.RecordID(1),
+				appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
+				appdef.SystemField_ParentID:  batch101TaskA1ID,
+				appdef.SystemField_Container: it.Field_GroupA,
+				it.Field_Cfg:                 cfgAID,
+				it.Field_Name:                "SubTaskA1_TaskA1",
 			},
-			{
-				Fields: map[string]interface{}{
-					appdef.SystemField_ID:        istructs.RecordID(2),
-					appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
-					appdef.SystemField_ParentID:  batch101TaskA1ID,
-					appdef.SystemField_Container: it.Field_GroupA,
-					it.Field_Cfg:                 cfgAID,
-					it.Field_Name:                "SubTaskA2_TaskA1",
-				},
+		},
+		{
+			Fields: map[string]interface{}{
+				appdef.SystemField_ID:        istructs.RecordID(2),
+				appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
+				appdef.SystemField_ParentID:  batch101TaskA1ID,
+				appdef.SystemField_Container: it.Field_GroupA,
+				it.Field_Cfg:                 cfgAID,
+				it.Field_Name:                "SubTaskA2_TaskA1",
 			},
-			{
-				Fields: map[string]interface{}{
-					appdef.SystemField_ID:        istructs.RecordID(3),
-					appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
-					appdef.SystemField_ParentID:  batch101TaskA1ID,
-					appdef.SystemField_Container: it.Field_GroupB,
-					it.Field_Cfg:                 cfgBID,
-					it.Field_Name:                "SubTaskB1_TaskA1",
-				},
+		},
+		{
+			Fields: map[string]interface{}{
+				appdef.SystemField_ID:        istructs.RecordID(3),
+				appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
+				appdef.SystemField_ParentID:  batch101TaskA1ID,
+				appdef.SystemField_Container: it.Field_GroupB,
+				it.Field_Cfg:                 cfgBID,
+				it.Field_Name:                "SubTaskB1_TaskA1",
 			},
-			{
-				Fields: map[string]interface{}{
-					appdef.SystemField_ID:        istructs.RecordID(4),
-					appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
-					appdef.SystemField_ParentID:  batch101TaskA1ID,
-					appdef.SystemField_Container: it.Field_GroupB,
-					it.Field_Cfg:                 cfgBID,
-					it.Field_Name:                "SubTaskB2_TaskA1",
-				},
+		},
+		{
+			Fields: map[string]interface{}{
+				appdef.SystemField_ID:        istructs.RecordID(4),
+				appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
+				appdef.SystemField_ParentID:  batch101TaskA1ID,
+				appdef.SystemField_Container: it.Field_GroupB,
+				it.Field_Cfg:                 cfgBID,
+				it.Field_Name:                "SubTaskB2_TaskA1",
 			},
-			{
-				Fields: map[string]interface{}{
-					appdef.SystemField_ID:        istructs.RecordID(5),
-					appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
-					appdef.SystemField_ParentID:  batch101TaskA2ID,
-					appdef.SystemField_Container: it.Field_GroupA,
-					it.Field_Cfg:                 cfgAID,
-					it.Field_Name:                "SubTaskA1_TaskA2",
-				},
+		},
+		{
+			Fields: map[string]interface{}{
+				appdef.SystemField_ID:        istructs.RecordID(5),
+				appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
+				appdef.SystemField_ParentID:  batch101TaskA2ID,
+				appdef.SystemField_Container: it.Field_GroupA,
+				it.Field_Cfg:                 cfgAID,
+				it.Field_Name:                "SubTaskA1_TaskA2",
 			},
-			{
-				Fields: map[string]interface{}{
-					appdef.SystemField_ID:        istructs.RecordID(6),
-					appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
-					appdef.SystemField_ParentID:  batch101TaskB1ID,
-					appdef.SystemField_Container: it.Field_GroupB,
-					it.Field_Cfg:                 cfgBID,
-					it.Field_Name:                "SubTaskB1_TaskB1",
-				},
+		},
+		{
+			Fields: map[string]interface{}{
+				appdef.SystemField_ID:        istructs.RecordID(6),
+				appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
+				appdef.SystemField_ParentID:  batch101TaskB1ID,
+				appdef.SystemField_Container: it.Field_GroupB,
+				it.Field_Cfg:                 cfgBID,
+				it.Field_Name:                "SubTaskB1_TaskB1",
 			},
-			{
-				Fields: map[string]interface{}{
-					appdef.SystemField_ID:        istructs.RecordID(7),
-					appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
-					appdef.SystemField_ParentID:  batch102TaskA1ID,
-					appdef.SystemField_Container: it.Field_GroupA,
-					it.Field_Cfg:                 cfgAID,
-					it.Field_Name:                "SubTaskA1_TaskA1",
-				},
+		},
+		{
+			Fields: map[string]interface{}{
+				appdef.SystemField_ID:        istructs.RecordID(7),
+				appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
+				appdef.SystemField_ParentID:  batch102TaskA1ID,
+				appdef.SystemField_Container: it.Field_GroupA,
+				it.Field_Cfg:                 cfgAID,
+				it.Field_Name:                "SubTaskA1_TaskA1",
 			},
-			{
-				Fields: map[string]interface{}{
-					appdef.SystemField_ID:        istructs.RecordID(8),
-					appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
-					appdef.SystemField_ParentID:  batch102TaskA1ID,
-					appdef.SystemField_Container: it.Field_GroupA,
-					it.Field_Cfg:                 cfgAID,
-					it.Field_Name:                "SubTaskA2_TaskA1",
-				},
+		},
+		{
+			Fields: map[string]interface{}{
+				appdef.SystemField_ID:        istructs.RecordID(8),
+				appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
+				appdef.SystemField_ParentID:  batch102TaskA1ID,
+				appdef.SystemField_Container: it.Field_GroupA,
+				it.Field_Cfg:                 cfgAID,
+				it.Field_Name:                "SubTaskA2_TaskA1",
 			},
-			{
-				Fields: map[string]interface{}{
-					appdef.SystemField_ID:        istructs.RecordID(9),
-					appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
-					appdef.SystemField_ParentID:  batch102TaskA1ID,
-					appdef.SystemField_Container: it.Field_GroupB,
-					it.Field_Cfg:                 cfgBID,
-					it.Field_Name:                "SubTaskB1_TaskA1",
-				},
+		},
+		{
+			Fields: map[string]interface{}{
+				appdef.SystemField_ID:        istructs.RecordID(9),
+				appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
+				appdef.SystemField_ParentID:  batch102TaskA1ID,
+				appdef.SystemField_Container: it.Field_GroupB,
+				it.Field_Cfg:                 cfgBID,
+				it.Field_Name:                "SubTaskB1_TaskA1",
 			},
-			{
-				Fields: map[string]interface{}{
-					appdef.SystemField_ID:        istructs.RecordID(10),
-					appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
-					appdef.SystemField_ParentID:  batch102TaskA1ID,
-					appdef.SystemField_Container: it.Field_GroupB,
-					it.Field_Cfg:                 cfgBID,
-					it.Field_Name:                "SubTaskB2_TaskA1",
-				},
+		},
+		{
+			Fields: map[string]interface{}{
+				appdef.SystemField_ID:        istructs.RecordID(10),
+				appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
+				appdef.SystemField_ParentID:  batch102TaskA1ID,
+				appdef.SystemField_Container: it.Field_GroupB,
+				it.Field_Cfg:                 cfgBID,
+				it.Field_Name:                "SubTaskB2_TaskA1",
 			},
-			{
-				Fields: map[string]interface{}{
-					appdef.SystemField_ID:        istructs.RecordID(11),
-					appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
-					appdef.SystemField_ParentID:  batch102TaskA2ID,
-					appdef.SystemField_Container: it.Field_GroupA,
-					it.Field_Cfg:                 cfgAID,
-					it.Field_Name:                "SubTaskA1_TaskA2",
-				},
+		},
+		{
+			Fields: map[string]interface{}{
+				appdef.SystemField_ID:        istructs.RecordID(11),
+				appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
+				appdef.SystemField_ParentID:  batch102TaskA2ID,
+				appdef.SystemField_Container: it.Field_GroupA,
+				it.Field_Cfg:                 cfgAID,
+				it.Field_Name:                "SubTaskA1_TaskA2",
 			},
-			{
-				Fields: map[string]interface{}{
-					appdef.SystemField_ID:        istructs.RecordID(12),
-					appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
-					appdef.SystemField_ParentID:  batch102TaskB1ID,
-					appdef.SystemField_Container: it.Field_GroupB,
-					it.Field_Cfg:                 cfgBID,
-					it.Field_Name:                "SubTaskB1_TaskB1",
-				},
+		},
+		{
+			Fields: map[string]interface{}{
+				appdef.SystemField_ID:        istructs.RecordID(12),
+				appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
+				appdef.SystemField_ParentID:  batch102TaskB1ID,
+				appdef.SystemField_Container: it.Field_GroupB,
+				it.Field_Cfg:                 cfgBID,
+				it.Field_Name:                "SubTaskB1_TaskB1",
 			},
 		},
 	}
-	resp = vit.PostWS(ws, "c.sys.CUD", cuds.MustToJSON())
+	resp = vit.PostWS(ws, "c.sys.CUD", cuds.ToJSON())
 	batch101SubTaskB1TaskB1ID := resp.NewIDs["6"]
 	batch102SubTaskB1TaskB1ID := resp.NewIDs["12"]
 
 	cuds = coreutils.CUDs{
-		Values: []coreutils.CUD{
-			{
-				Fields: map[string]interface{}{
-					appdef.SystemField_ID:        istructs.RecordID(1),
-					appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
-					appdef.SystemField_ParentID:  batch101SubTaskB1TaskB1ID,
-					appdef.SystemField_Container: it.Field_GroupA,
-					it.Field_Cfg:                 cfgAID,
-					it.Field_Name:                "SubSubTaskA1_SubTaskB1_TaskB1",
-				},
+		{
+			Fields: map[string]interface{}{
+				appdef.SystemField_ID:        istructs.RecordID(1),
+				appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
+				appdef.SystemField_ParentID:  batch101SubTaskB1TaskB1ID,
+				appdef.SystemField_Container: it.Field_GroupA,
+				it.Field_Cfg:                 cfgAID,
+				it.Field_Name:                "SubSubTaskA1_SubTaskB1_TaskB1",
 			},
-			{
-				Fields: map[string]interface{}{
-					appdef.SystemField_ID:        istructs.RecordID(2),
-					appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
-					appdef.SystemField_ParentID:  batch101SubTaskB1TaskB1ID,
-					appdef.SystemField_Container: it.Field_GroupA,
-					it.Field_Cfg:                 cfgAID,
-					it.Field_Name:                "SubSubTaskA2_SubTaskB1_TaskB1",
-				},
+		},
+		{
+			Fields: map[string]interface{}{
+				appdef.SystemField_ID:        istructs.RecordID(2),
+				appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
+				appdef.SystemField_ParentID:  batch101SubTaskB1TaskB1ID,
+				appdef.SystemField_Container: it.Field_GroupA,
+				it.Field_Cfg:                 cfgAID,
+				it.Field_Name:                "SubSubTaskA2_SubTaskB1_TaskB1",
 			},
-			{
-				Fields: map[string]interface{}{
-					appdef.SystemField_ID:        istructs.RecordID(3),
-					appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
-					appdef.SystemField_ParentID:  batch101SubTaskB1TaskB1ID,
-					appdef.SystemField_Container: it.Field_GroupB,
-					it.Field_Cfg:                 cfgBID,
-					it.Field_Name:                "SubSubTaskB1_SubTaskB1_TaskB1",
-				},
+		},
+		{
+			Fields: map[string]interface{}{
+				appdef.SystemField_ID:        istructs.RecordID(3),
+				appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
+				appdef.SystemField_ParentID:  batch101SubTaskB1TaskB1ID,
+				appdef.SystemField_Container: it.Field_GroupB,
+				it.Field_Cfg:                 cfgBID,
+				it.Field_Name:                "SubSubTaskB1_SubTaskB1_TaskB1",
 			},
-			{
-				Fields: map[string]interface{}{
-					appdef.SystemField_ID:        istructs.RecordID(4),
-					appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
-					appdef.SystemField_ParentID:  batch102SubTaskB1TaskB1ID,
-					appdef.SystemField_Container: it.Field_GroupA,
-					it.Field_Cfg:                 cfgAID,
-					it.Field_Name:                "SubSubTaskA1_SubTaskB1_TaskB1",
-				},
+		},
+		{
+			Fields: map[string]interface{}{
+				appdef.SystemField_ID:        istructs.RecordID(4),
+				appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
+				appdef.SystemField_ParentID:  batch102SubTaskB1TaskB1ID,
+				appdef.SystemField_Container: it.Field_GroupA,
+				it.Field_Cfg:                 cfgAID,
+				it.Field_Name:                "SubSubTaskA1_SubTaskB1_TaskB1",
 			},
-			{
-				Fields: map[string]interface{}{
-					appdef.SystemField_ID:        istructs.RecordID(5),
-					appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
-					appdef.SystemField_ParentID:  batch102SubTaskB1TaskB1ID,
-					appdef.SystemField_Container: it.Field_GroupA,
-					it.Field_Cfg:                 cfgAID,
-					it.Field_Name:                "SubSubTaskA2_SubTaskB1_TaskB1",
-				},
+		},
+		{
+			Fields: map[string]interface{}{
+				appdef.SystemField_ID:        istructs.RecordID(5),
+				appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
+				appdef.SystemField_ParentID:  batch102SubTaskB1TaskB1ID,
+				appdef.SystemField_Container: it.Field_GroupA,
+				it.Field_Cfg:                 cfgAID,
+				it.Field_Name:                "SubSubTaskA2_SubTaskB1_TaskB1",
 			},
-			{
-				Fields: map[string]interface{}{
-					appdef.SystemField_ID:        istructs.RecordID(6),
-					appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
-					appdef.SystemField_ParentID:  batch102SubTaskB1TaskB1ID,
-					appdef.SystemField_Container: it.Field_GroupB,
-					it.Field_Cfg:                 cfgBID,
-					it.Field_Name:                "SubSubTaskB1_SubTaskB1_TaskB1",
-				},
+		},
+		{
+			Fields: map[string]interface{}{
+				appdef.SystemField_ID:        istructs.RecordID(6),
+				appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
+				appdef.SystemField_ParentID:  batch102SubTaskB1TaskB1ID,
+				appdef.SystemField_Container: it.Field_GroupB,
+				it.Field_Cfg:                 cfgBID,
+				it.Field_Name:                "SubSubTaskB1_SubTaskB1_TaskB1",
 			},
 		},
 	}
-	resp = vit.PostWS(ws, "c.sys.CUD", cuds.MustToJSON())
+	resp = vit.PostWS(ws, "c.sys.CUD", cuds.ToJSON())
 	batch101SubSubTaskB1SubTaskB1TaskB1ID := resp.NewIDs["3"]
 	batch102SubSubTaskB1SubTaskB1TaskB1ID := resp.NewIDs["6"]
 
 	cuds = coreutils.CUDs{
-		Values: []coreutils.CUD{
-			{
-				Fields: map[string]interface{}{
-					appdef.SystemField_ID:        istructs.RecordID(1),
-					appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
-					appdef.SystemField_ParentID:  batch101SubSubTaskB1SubTaskB1TaskB1ID,
-					appdef.SystemField_Container: it.Field_GroupA,
-					it.Field_Cfg:                 cfgAID,
-					it.Field_Name:                "SubSubSubTaskA1_SubSubTaskB1_SubTaskB1_TaskB1",
-				},
+		{
+			Fields: map[string]interface{}{
+				appdef.SystemField_ID:        istructs.RecordID(1),
+				appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
+				appdef.SystemField_ParentID:  batch101SubSubTaskB1SubTaskB1TaskB1ID,
+				appdef.SystemField_Container: it.Field_GroupA,
+				it.Field_Cfg:                 cfgAID,
+				it.Field_Name:                "SubSubSubTaskA1_SubSubTaskB1_SubTaskB1_TaskB1",
 			},
-			{
-				Fields: map[string]interface{}{
-					appdef.SystemField_ID:        istructs.RecordID(2),
-					appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
-					appdef.SystemField_ParentID:  batch101SubSubTaskB1SubTaskB1TaskB1ID,
-					appdef.SystemField_Container: it.Field_GroupA,
-					it.Field_Cfg:                 cfgAID,
-					it.Field_Name:                "SubSubSubTaskA2_SubSubTaskB1_SubTaskB1_TaskB1",
-				},
+		},
+		{
+			Fields: map[string]interface{}{
+				appdef.SystemField_ID:        istructs.RecordID(2),
+				appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
+				appdef.SystemField_ParentID:  batch101SubSubTaskB1SubTaskB1TaskB1ID,
+				appdef.SystemField_Container: it.Field_GroupA,
+				it.Field_Cfg:                 cfgAID,
+				it.Field_Name:                "SubSubSubTaskA2_SubSubTaskB1_SubTaskB1_TaskB1",
 			},
-			{
-				Fields: map[string]interface{}{
-					appdef.SystemField_ID:        istructs.RecordID(3),
-					appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
-					appdef.SystemField_ParentID:  batch101SubSubTaskB1SubTaskB1TaskB1ID,
-					appdef.SystemField_Container: it.Field_GroupB,
-					it.Field_Cfg:                 cfgBID,
-					it.Field_Name:                "SubSubSubTaskB1_SubSubTaskB1_SubTaskB1_TaskB1",
-				},
+		},
+		{
+			Fields: map[string]interface{}{
+				appdef.SystemField_ID:        istructs.RecordID(3),
+				appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
+				appdef.SystemField_ParentID:  batch101SubSubTaskB1SubTaskB1TaskB1ID,
+				appdef.SystemField_Container: it.Field_GroupB,
+				it.Field_Cfg:                 cfgBID,
+				it.Field_Name:                "SubSubSubTaskB1_SubSubTaskB1_SubTaskB1_TaskB1",
 			},
-			{
-				Fields: map[string]interface{}{
-					appdef.SystemField_ID:        istructs.RecordID(4),
-					appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
-					appdef.SystemField_ParentID:  batch102SubSubTaskB1SubTaskB1TaskB1ID,
-					appdef.SystemField_Container: it.Field_GroupA,
-					it.Field_Cfg:                 cfgAID,
-					it.Field_Name:                "SubSubSubTaskA1_SubSubTaskB1_SubTaskB1_TaskB1",
-				},
+		},
+		{
+			Fields: map[string]interface{}{
+				appdef.SystemField_ID:        istructs.RecordID(4),
+				appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
+				appdef.SystemField_ParentID:  batch102SubSubTaskB1SubTaskB1TaskB1ID,
+				appdef.SystemField_Container: it.Field_GroupA,
+				it.Field_Cfg:                 cfgAID,
+				it.Field_Name:                "SubSubSubTaskA1_SubSubTaskB1_SubTaskB1_TaskB1",
 			},
-			{
-				Fields: map[string]interface{}{
-					appdef.SystemField_ID:        istructs.RecordID(5),
-					appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
-					appdef.SystemField_ParentID:  batch102SubSubTaskB1SubTaskB1TaskB1ID,
-					appdef.SystemField_Container: it.Field_GroupA,
-					it.Field_Cfg:                 cfgAID,
-					it.Field_Name:                "SubSubSubTaskA2_SubSubTaskB1_SubTaskB1_TaskB1",
-				},
+		},
+		{
+			Fields: map[string]interface{}{
+				appdef.SystemField_ID:        istructs.RecordID(5),
+				appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
+				appdef.SystemField_ParentID:  batch102SubSubTaskB1SubTaskB1TaskB1ID,
+				appdef.SystemField_Container: it.Field_GroupA,
+				it.Field_Cfg:                 cfgAID,
+				it.Field_Name:                "SubSubSubTaskA2_SubSubTaskB1_SubTaskB1_TaskB1",
 			},
-			{
-				Fields: map[string]interface{}{
-					appdef.SystemField_ID:        istructs.RecordID(6),
-					appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
-					appdef.SystemField_ParentID:  batch102SubSubTaskB1SubTaskB1TaskB1ID,
-					appdef.SystemField_Container: it.Field_GroupB,
-					it.Field_Cfg:                 cfgBID,
-					it.Field_Name:                "SubSubSubTaskB1_SubSubTaskB1_SubTaskB1_TaskB1",
-				},
+		},
+		{
+			Fields: map[string]interface{}{
+				appdef.SystemField_ID:        istructs.RecordID(6),
+				appdef.SystemField_QName:     it.QNameApp1_CRecordTask,
+				appdef.SystemField_ParentID:  batch102SubSubTaskB1SubTaskB1TaskB1ID,
+				appdef.SystemField_Container: it.Field_GroupB,
+				it.Field_Cfg:                 cfgBID,
+				it.Field_Name:                "SubSubSubTaskB1_SubSubTaskB1_SubTaskB1_TaskB1",
 			},
 		},
 	}
-	vit.PostWS(ws, "c.sys.CUD", cuds.MustToJSON())
+	vit.PostWS(ws, "c.sys.CUD", cuds.ToJSON())
 
 	t.Run("View", func(t *testing.T) {
 		t.Run("Read by PK and include all", func(t *testing.T) {

@@ -112,6 +112,8 @@ func processPayment(ctx context.Context) {
   - [Default routing: logger.go#L90](logger.go#L90)
 - **[Performance guards](logger.go#L68)** - `IsVerbose()`,
   `IsTrace()`, etc. prevent computing expensive arguments
+- **slog level mapping** - Both `Verbose` and `Trace` internal levels
+  map to `slog.LevelDebug` when emitting structured log records
 
 ## Use
 

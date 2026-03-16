@@ -5,12 +5,6 @@
 
 package router
 
-import "log"
-
-func (s *acmeService) Prepare(work interface{}) (err error) {
-	filteringLogger := log.New(&filteringWriter{log.Default().Writer()}, log.Default().Prefix(), log.Default().Flags())
-	if err = s.prepareBasicServer(s.handler); err == nil {
-		s.server.ErrorLog = filteringLogger
-	}
-	return err
+func (s *acmeService) Prepare(work interface{}) error {
+	return s.prepareBasicServer(s.handler)
 }
