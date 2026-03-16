@@ -23,33 +23,37 @@
 
 ### Stage naming conventions
 
-Stage values describe the processing phase or operation context:
+Stage values describe the processing phase. Convention: `<component>.<substage>`:
 
+- HTTP server stages:
+  - `"endpoint.validation"` - Router params validation failure
+  - `"endpoint.listen"` - Start or fail accepting connections
+  - `"endpoint.shutdown"` - Server stops accepting connections
+  - `"endpoint.unexpectedstop"` - Server exits unexpectedly
+- Bootstrap stages:
+  - `"bootstrap"` - Bootstrap start, cluster workspace init, completion
+  - `"bootstrap.appdeploy"` - Per-app deployment
+  - `"bootstrap.apppartdeploy"` - Per-partition deployment
+- Leadership stages:
+  - `"leadership.acquire"` - Leadership acquisition attempt
+  - `"leadership.maintain"` - Leadership renewal tick
 - Router stages:
-  - `"routing"` - Request received, validated and currently sendinf to VVM
-  - `"server"` - Server-level operations
-  - `"latency1"` - First response latency measurement
+  - `"routing"` - Request accepted and VVM dispatch errors
 - Command processor stages:
-  - `"command handling"` - Command processing (success/error)
-  - `"partition recovery"` - Partition recovery
-  - `"partition restart"` - Partition restart warning
-    //FIXME there are 2 substages: acl check for func and acl check for each CUD
-  - `"acl check"` - ACL validation
-  - `"notify actualizers"` - Notifying async actualizers
-    //FIXME: not clear what is it. If it is just response marshalling then drop
-  - `"marshal response"` - Response marshaling
-  - `Event/CUD logging stage` is included
-- Event/CUD logging stages:
-  - `"log event"` - Event logging
-  - `"log cud"` - CUD (Create/Update/Delete) logging
+  - `"cp.received"` - Request received by command processor
+  - `"cp.plog_saved"` - Event written to PLog (includes event and CUD logs via `LogEventAndCUDs`)
+  - `"cp.error"` - Command handling error
+  - `"cp.success"` - Successful command execution
+  - `"cp.partition_recovery"` - Partition recovery (start, progress, completion, failure)
+- Event/CUD logging stages (produced inside `LogEventAndCUDs`):
+  - `<provided_stage>` - Event arguments log, same stage as the caller provides
+  - `"<provided_stage>.log_cud"` - Per-CUD log entry
+- Query processor stages:
+  - `"qp.received"` - Request received by query processor
+  - `"qp.error"` - Query execution error
+  - `"qp.success"` - Successful query execution
 - Actualizer stages:
-  - `"projector error"` - Projector execution error
-  - `"projector success"` - Projector execution success
-    // FIXME not clear what is it, drop
-  - `"read offset"` - Reading offset from storage
-    // FIXME not clear when and what to log. Per each plog record?
-  - `"read plog"` - Reading PLog
-  - `"notification received"` - N10n notification received
+  - `"ap"` - All async projector logging (errors and success)
 - Test stages:
   - `"test"` - All test logging calls
 
