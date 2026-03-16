@@ -12,12 +12,20 @@
 ## Technical design
 
 - [x] create: [prod/apps/logging--td.md](../../specs/prod/apps/logging--td.md)
-  - add: Logging subsystem architecture document
-  - add: Overview of structured logging approach
-  - add: Key components (logger package, context propagation, log attributes)
-  - add: Key data models (log attributes: vapp, reqid, wsid, extension, duration)
-  - add: Integration points with existing logger package
-  - add: Tracing strategy for different processing stages
+  - add: Overview — structured context-aware logging on top of `log/slog`
+  - add: Concepts — `Logging Attribute` definition (linked-list chain, shadowing, O(1) addition)
+  - add: Standard attributes — `feat`, `reqid`, `vapp`, `wsid`, `extension`, `stage` with constants, examples and owners
+  - add: General scenarios — how context attributes and stage flow through `*Ctx` logging calls
+  - add: Per-component scenarios:
+    - HTTP server: `endpoint.validation/listen/shutdown/unexpectedstop` stages
+    - Bootstrap: `bootstrap`, `bootstrap.appdeploy`, `bootstrap.apppartdeploy` stages
+    - Leadership: `leadership.acquire`, `leadership.maintain` stages
+    - Router: request context enrichment, `routing` stage
+    - Command processor: `cp.received`, `cp.plog_saved`, `cp.error`, `cp.success`, `cp.partition_recovery` stages; event/CUD logging via `LogEventAndCUDs`; partition recovery details
+    - Query processor: `qp.received`, `qp.error`, `qp.success` stages
+    - Actualizer: `ap` stage, error wrapping via `errWithCtx`, event/CUD logging via `LogEventAndCUDs`
+  - add: Key components — logger package files, `WithContextAttrs`, `sLogAttrsFromCtx`, context-aware and standard logging function signatures, attribute constants, slog handler configuration, router and shared event/CUD integration
+  - add: Key data models — `logAttrs`, `ctxKey`, `TLogLevel`
 
 ## Construction
 
