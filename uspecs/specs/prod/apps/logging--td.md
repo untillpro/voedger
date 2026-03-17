@@ -388,6 +388,11 @@ const (
 
 Ensures consistent attribute naming across all components.
 
+### LogEventAndCUDs
+
+- Function LogEventAndCUDs is used to log events in command processor and actualizers with consistent formatting and context enrichment
+- Returns enriched context that must be used for subsequent logging to maintain event attributes
+
 ### slog integration
 
 **[Handler configuration](../../../../pkg/goutils/logger/consts.go#L26)**
