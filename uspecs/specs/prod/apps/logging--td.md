@@ -65,6 +65,8 @@ A key-value pair that provides additional context to log entries. Attributes are
   - Context attributes (vapp, reqid, wsid, extension, etc.) are automatically extracted and added to the log entry
   - `stage` value is appended to the log as `stage` attribute
   - Message args are formatted via `fmt.Sprint()` and used as the log message
+- Affected parts of both APIv1 and APIv2 must have the same logging
+- If there is already some logging in the affected source code files that is not described in this document then this logging must be dropped
 
 ---
 
@@ -78,7 +80,7 @@ HTTP root context is derived from VVM context:
 
 - `vapp="sys/voedger"`
 - `extension` = server name: `sys._HTTPServer`, `sys._AdminHTTPServer`, `sys._HTTPSServer`, or `sys._ACMEServer`
-Used for logging server start/stop operations and for all incoming HTTP requests:
+  Used for logging server start/stop operations and for all incoming HTTP requests:
 
 - Router params validation failure: level `Error`, stage `endpoint.validation`, msg `<error message>`
 - Start accepting connections success: level `Info`, stage `endpoint.listen.start`, msg `<addr>:<port>`
@@ -146,8 +148,7 @@ Uses `vapp="sys/voedger"`, `extension="sys._Leadership"`, `key` attribs.
 
 The context with attributes is received from Router
 
-- Logs the event details right after successful write to PLog using `processors.LogEventAndCUDs()` providing `cp.plog_saved` as the stage, callback that returns `true`, `oldfields={...}` and `nil` error for each CUD
-  - note: old fields for each CUD that came with http request. No old fields for CUDs created by the command
+- Logs the event details right after successful write to PLog: calls `processors.LogEventAndCUDs()` (see [LogEventAndCUDs](#logeventandcuds)) with stage `cp.plog_saved`; per-CUD callback always returns `shouldLog=true`; `msgAdds` is `,oldfields={...}` for CUDs that arrived with the HTTP request, empty for CUDs created by the command; `eventMessageAdds` is empty
 - Right before sending the response to the bus:
   - Command handling error: level `Error`, stage `cp.error`, msg `<error message>`, `body`=`<compacted request body>`
   - Command executed successfully: level `Verbose`, stage `cp.success`, msg `<command result>`
@@ -162,30 +163,6 @@ The context with attributes is received from Router
     - `vapp` attrib is replaced with `sys/voedger`
     - `extension` attrib is replaced with `sys._Recovery`
     - msg `partition will be restarted due of an error on <syncActualizers, applyRecords, etc>: <error message>`
-
-**Event and CUD logging:**
-
-- Done in shared `processors.LogEventAndCUDs()` utility
-- Do nothing if `!logger.IsVerbose()`
-- Args:
-  - `stage string`
-  - `skipStackFrames int`
-  - `perCUDCallback func (ICUD) (shouldLog bool, msgAdds string, err error)`
-    - `shouldLog` - whether to log the CUD. Always true for command processor, for actualizer it's false if the CUD is not the triggering one
-    - `msgAdds` - additional message to append to the cud log message, e.g. `,oldfields={...}` for command processor, empty for actualizer
-  - `plogOffset Offset`
-  - `appDef IAppDef`, need to marshal a CUD to JSON
-  - `event IPlogEvent`, need to get `woffset` and the event arguments
-  - `eventMessageAdds string` - additional message to append to the pre-cuds event log message before iteration over CUDs. Empty for command processor, `triggeredby=<...>` for actualizers
-- Enriches context with event attributes: `woffset`, `poffset`, `evqname`
-- Logs event arguments as JSON `args={...}`, provided `stage` is used, level `Verbose`
-- For each CUD:
-  - calls `perCUDCallback` to get `shouldLog`, `msgAdds` and `err`
-  - if `err` is not nil, fails with it
-  - if `shouldLog` is false, skips the CUD
-  - enriches context with: `rectype`, `recid`, `op`
-  - Logs new fields as JSON: `msg=newfields={...}{msgAdds}`, stage `{stage}.log_cud`, level `Verbose`
-- Returns the context enriched by `woffset`, `poffset`, `evqname`. Need for use on logging on sync projectors stage
 
 **Partition recovery:**
 
@@ -222,21 +199,16 @@ Launched by command processor between `ApplyRecords` and `PutWLog` stages
 
 Attributes:
 
-- `vapp` is determined before event is sent to pipeline (asyncActualizer.pipeline), enriched context is sent to the pipeline
-- `extension` is determined inside the pipeline based on event QName prefixed with `ap.`, context is enriched
-
-**Event processing:**
+- `vapp` and `extension` attribs are set on app partition deployment on start new actualizers stage. `Extension` is `ap.<projector QName>`
+  **Event processing:**
 
 Stage is `ap`
 
 - Determines if the projector triggered by the current event via `ProjectorEvent()`
 - Adds `wsid` to log context in `DoAsync()` when processing event
-- Uses shared `processors.LogEventAndCUDs("ap")` utility with args:
-  - cud callback filters CUDs based on trigger type:
-    - Function-triggered: logs all CUDs
-    - ODoc/ORecord-triggered: logs all CUDs
-    - Other triggers: logs only CUDs matching trigger QName
-  - eventMessageAdds: `triggeredby=<QName>`
+- Calls `processors.LogEventAndCUDs("ap")` (see [LogEventAndCUDs](#logeventandcuds)):
+  - `perCUDCallback`: returns `shouldLog=true` for all CUDs when triggered by a function or ODoc/ORecord; for other triggers only CUDs matching the trigger QName; `msgAdds` is empty
+  - `eventMessageAdds`: `triggeredby=<QName>`
 - Constructs event context - merge the context got from `processors.LogEventAndCUDs` and the ctx with `vapp` and `extension` attribs
 - Stores the event context in the pipeline workpiece to use it on error logging
 
@@ -246,6 +218,115 @@ Done in `asyncErrorHandler.OnError()` handler
 
 - Uses the event context
 - Logs the error: level `Error`, stage `ap.error`, msg `<error message>`
+
+### Blob Processor
+
+Note: BLOB ID is a string — either a numeric record ID or a SUUID, depending on whether the BLOB is persistent or temporary.
+
+**Router (both API v1 and API v2):**
+
+API v1 (`blobHTTPRequestHandler_Write`, `blobHTTPRequestHandler_Read`) already calls `withLogAttribs()`. API v2 blob handlers must also be updated to call `withLogAttribs()`, so both paths set identical context attributes and emit `routing.accepted`.
+
+- `extension`:
+  - Write: `sys._Blob_Write`
+  - Read: `sys._Blob_Read`
+
+**Attributes set by Blob Processor (both read and write):**
+
+Attribute key strings are defined as local constants within the blob processor package.
+
+- `ownerqname` (string): QName of the record that owns the BLOB (e.g. `air.Bill`)
+- `ownerfield` (string): field name on the owner record that holds the BLOB reference
+- `ownerid` (string): record ID of the owner record (for read only; for write the owner record does not exist yet at this point)
+- `blobid` (string): BLOB ID (numeric record ID or SUUID):
+  - **Read**: added to context at the start of processing (BLOB ID is known from the request URL)
+  - **Write**: added to context right after `blobStorage.WriteBLOB()` completes successfully
+
+**Read:**
+
+- Logs success: level `Verbose`, stage `bp.success`, msg (empty)
+
+**Write:**
+
+- After all validation succeeds (`validateQueryParams` completes): level `Verbose`, stage `bp.meta`, msg `name=<name>,contenttype=<type>`
+- After `registerBLOB`: level `Verbose`, stage `bp.register.success`, msg (empty)
+- After `blobStorage.WriteBLOB()` — adds `blobid` attrib to context, then: level `Verbose`, stage `bp.write.success`, msg (empty)
+- After setting BLOB status to `completed`: level `Verbose`, stage `bp.setcompleted.success`, msg (empty)
+
+**Error handling:**
+
+Context may include `blobid`, `ownerqname`, `ownerfield`, `ownerid` attribs.
+
+- Logs error: level `Error`, stage `bp.error`, msg `<error message>`
+  - If the error is `SysError` with 400 Bad Request status code then url query and BLOBs-related headers are added to the msg comma-separated
+
+### N10N Processor
+
+**Router (both API v1 and API v2):**
+
+API v1 n10n handlers must be updated to call `withLogAttribs()`, matching API v2 behavior. Both paths set `vapp`, `reqid`, `wsid`, `origin`, and `extension`:
+
+- Subscribe+Watch (`POST .../notifications`): `extension` = `sys._N10N_SubscribeAndWatch`
+  - Requires adding `processors.APIPath_N10N_SubscribeAndWatch` and a new case in `apiPathToExtension()` returning `"sys._N10N_SubscribeAndWatch"`
+- Subscribe-extra (`PUT .../subscriptions/{entity}`): `extension` = entity QName (e.g. `air.view_price`)
+- Unsubscribe (`DELETE .../subscriptions/{entity}`): `extension` = entity QName (e.g. `air.view_price`)
+
+**Component-local attribute keys** (defined as local constants in the n10n processor package, not in `logger/consts.go`):
+
+- `channelid` (string): N10N channel UUID — added to context after channel creation
+- `projectionkey` (string): serialized via `projection.ToJSON()` — added to context only when there is a single projection key
+
+**Errors handling:**
+
+- Logs error: level `Error`, stage `n10n.error`, msg `<error message>`
+  - The context from the processor pipeline is used (may include `projectionkey` and `channelid` attribs)
+  - If the error is `SysError` with 400 Bad Request status code then:
+    - Subscribe+Watch → `,body=<compacted request body>` is appended to the msg
+    - Subscribe-extra → `,projectionkey=<projection key>` is appended to the msg
+    - Unsubscribe → `,projectionkey=<projection key>` is appended to the msg
+
+**Subscribe+Watch flow:**
+
+- Adds `projectionkey` attrib only if there is a single projection key to subscribe to
+- Adds `channelid` attrib after channel creation
+- Logs successful `IN10NBroker.SubscribeAndWatch()` call: level `Verbose`, stage `n10n.subscribe&watch.success`
+  - Single projection key → msg is empty
+  - Otherwise → msg `subscriptions=<subscriptions>`
+- Logs each SSE message: level `Verbose`, stage `n10n.sse_sent`, msg `<sse message>`
+- Logs error on fail to send SSE message: level `Error`, stage `n10n.watch.sse_error`, msg `<error>`
+
+**Subscribe-extra flow:**
+
+- Adds `projectionkey` attrib to the context
+- Logs successful `IN10NBroker.Subscribe()` call: level `Verbose`, stage `n10n.subscribe.success`
+
+**Unsubscribe flow:**
+
+- Adds `projectionkey` attrib to the context
+- Logs successful `IN10NBroker.Unsubscribe()` call: level `Verbose`, stage `n10n.unsubscribe.success`
+
+**N10N Broker lifecycle (in10nmem):**
+
+A dedicated log context is created inside `NewN10nBroker` with `vapp="sys/voedger"` and `extension="sys._N10NBroker"`. All broker lifecycle log calls use this context.
+
+- Notifier goroutine started: level `Info`, stage `n10n.notifier.start`, msg (empty)
+- Notifier goroutine stopped: level `Info`, stage `n10n.notifier.stop`, msg (empty)
+- Heartbeat goroutine started: level `Info`, stage `n10n.heartbeat.start`, msg `Heartbeat30Duration: <duration>`
+- Heartbeat goroutine stopped: level `Info`, stage `n10n.heartbeat.stop`, msg (empty)
+- Channel expired during `WatchChannel`: level `Error`, stage `n10n.channel.expired`, msg `<subjectLogin>`
+- Channel cleanup unsubscribe error: level `Error`, stage `n10n.cleanup.error`, msg `channelID=<id>, projectionKey=<key>: <error>`
+
+## Schedulers
+
+**Attributes:**
+
+- `vapp` and `extension` attribs are set on app partition deployment on start new actualizers stage. `extension` is `job.<job QName>`
+
+**Job execution:**
+
+- Logs (re)schedule: level `Verbose`, stage `job.reschedule`, msg `now=<timeNow>,next=<nextRunTime>`
+- Logs wake-up: level `Verbose`, stage `job.wake-up`, msg `<timeNow>`
+- Logs successful invoke: level `Verbose`, stage `job.success`, msg (empty)
 
 ---
 
@@ -388,10 +469,42 @@ const (
 
 Ensures consistent attribute naming across all components.
 
+Component-specific attribute keys used only within a single package (e.g. `blobid`, `ownerqname`, `ownerfield`, `ownerid`, `channelid`, `projectionkey`) are defined as local string constants within their respective packages, not in `logger/consts.go`.
+
 ### LogEventAndCUDs
 
-- Function LogEventAndCUDs is used to log events in command processor and actualizers with consistent formatting and context enrichment
-- Returns enriched context that must be used for subsequent logging to maintain event attributes
+**[processors.LogEventAndCUDs](../../../../pkg/processors/utils.go#L101)**
+
+```go
+func LogEventAndCUDs(logCtx context.Context, event istructs.IPLogEvent,
+    pLogOffset istructs.Offset, appDef appdef.IAppDef,
+    skipStackFrames int, stage string,
+    perCUDLogCallback func(istructs.ICUDRow) (bool, string, error),
+    eventMessageAdds string) (enrichedCtx context.Context, err error)
+```
+
+Shared utility for logging PLog events and their CUDs with consistent context enrichment. Used by command processor and async actualizers.
+
+- Does nothing and returns `logCtx` unchanged if `!logger.IsVerbose()`
+- Enriches context with `woffset`, `poffset`, `evqname` attributes
+- Logs event arguments as JSON at Verbose level: stage `<stage>`, msg `args={...}{eventMessageAdds}`
+- For each CUD:
+  - Calls `perCUDLogCallback` to get `shouldLog`, `msgAdds`, `err`
+  - If `err != nil`, returns the error
+  - If `shouldLog` is false, skips the CUD
+  - Enriches context with `rectype`, `recid`, `op`
+  - Logs new fields as JSON at Verbose level: stage `<stage>.log_cud`, msg `newfields={...}{msgAdds}`
+- Returns the context enriched with `woffset`, `poffset`, `evqname`; callers must use it for subsequent logging
+
+**Parameters:**
+
+- `stage`: stage name for the event log entry; CUD entries use `<stage>.log_cud`
+- `skipStackFrames`: call-stack frames to skip for the correct `src` attribute
+- `perCUDLogCallback`: per-CUD filter; `shouldLog` — whether to log this CUD; `msgAdds` — text appended to the `newfields` message
+- `eventMessageAdds`: extra text appended to the pre-CUD event log message (e.g. `triggeredby=<QName>` for actualizers, empty for command processor)
+- `plogOffset`: used as the `poffset` context attribute
+- `appDef`: used to marshal CUD field values to JSON
+- `event`: source of `woffset`, event arguments, and CUDs
 
 ### slog integration
 
@@ -435,24 +548,6 @@ func withLogAttribs(ctx context.Context, data validatedData,
 ```
 
 Creates initial request context with logging attributes.
-
-**[Shared event/CUD logging](../../../../pkg/processors/utils.go#L101)**
-
-```go
-func LogEventAndCUDs(logCtx context.Context, event istructs.IPLogEvent,
-    pLogOffset istructs.Offset, appDef appdef.IAppDef,
-    skipStackFrames int, stage string, perCUDLogCallback func(istructs.ICUDRow) (bool, string, error),
-    eventMessageAdds string) (enrichedCtx context.Context, err error)
-```
-
-Shared utility for logging events and CUDs with consistent formatting.
-
-- Enriches context with `woffset`, `poffset`, `evqname`
-- Logs event arguments as JSON
-- For each CUD: enriches context with `rectype`, `recid`, `op`
-- Logs new fields as JSON
-- Callback allows component-specific filtering and extra messages
-- Used by command processor and actualizers
 
 ## Key data models
 
