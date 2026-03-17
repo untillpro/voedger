@@ -216,14 +216,14 @@ Launched by command processor between `ApplyRecords` and `PutWLog` stages
   - Logs the projector error: level `Error`, stage `sp.error`, msg `<error message>`
 - Each triggered sync projector:
   - Logs the trigger QName right before `IAppParts.Invoke()`: level `Verbose`, stage `sp.triggeredby`, msg `<triggered by qname>`, extension `<projector QName>`
-  - After success Invoke: level `Verbose`, stage `sp.success`, `extension`=`<projector QName>`, msg (empty)
+  - After success Invoke: level `Verbose`, stage `sp.success`, `extension`=`sp.<projector QName>`, msg (empty)
 
 ### Async Projectors
 
 Attributes:
 
 - `vapp` is determined before event is sent to pipeline (asyncActualizer.pipeline), enriched context is sent to the pipeline
-- `extension` is determined inside the pipeline based on event QName, context is enriched
+- `extension` is determined inside the pipeline based on event QName prefixed with `ap.`, context is enriched
 
 **Event processing:**
 
