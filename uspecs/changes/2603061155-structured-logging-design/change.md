@@ -22,4 +22,7 @@ Design a logging subsystem architecture that provides:
 - Duration measurement for each processing stage
 - Structured logging format for consistent log analysis
 
-Make sources use stage attribute
+Testing:
+
+- Unit tests for context-aware logging functions
+- Tests for logging in command processor and actualizer
