@@ -249,7 +249,6 @@ Done in `asyncErrorHandler.OnError()` handler
 
 ---
 
-
 ## Key components
 
 ### Core logging infrastructure
