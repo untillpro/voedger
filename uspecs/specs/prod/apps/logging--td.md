@@ -185,6 +185,7 @@ The context with attributes is received from Router
   - if `shouldLog` is false, skips the CUD
   - enriches context with: `rectype`, `recid`, `op`
   - Logs new fields as JSON: `msg=newfields={...}{msgAdds}`, stage `{stage}.log_cud`, level `Verbose`
+- Returns the context enriched by `woffset`, `poffset`, `evqname`. Need for use on logging on sync projectors stage
 
 **Partition recovery:**
 
@@ -205,13 +206,19 @@ The context with attributes is received from Router
 
 - query execution error: level `Error`, stage `qp.error`, msg `<error message>`
 
-### Actualizer Sync Projectors
+### Sync Projectors
 
-// FIXME
+Launched by command processor between `ApplyRecords` and `PutWLog` stages
 
-### Actualizer (Async Projectors)
+- Uses the context got from `processors.LogEventAndCUDs()` with attribs `woffset`, `poffset`, `evqname`
+- Command processor logs:
+  - After all sync projectors success: level `Verbose`, stage `sp.success`, msg (empty)
+  - Logs the projector error: level `Error`, stage `sp.error`, msg `<error message>`
+- Each triggered sync projector:
+  - Logs the trigger QName right before `IAppParts.Invoke()`: level `Verbose`, stage `sp.triggeredby`, msg `<triggered by qname>`, `extension`=`<projector QName>`
+  - After success Invoke: level `Verbose`, stage `sp.success`, `extension`=`<projector QName>`, msg (empty)
 
-// FIXME
+### Async Projectors
 
 Attributes:
 
@@ -230,14 +237,15 @@ Stage is `ap`
     - ODoc/ORecord-triggered: logs all CUDs
     - Other triggers: logs only CUDs matching trigger QName
   - eventMessageAdds: `triggeredby=<QName>`
+- Merges the context got from `processors.LogEventAndCUDs` and the ctx with `vapp` and `extension` attribs
+- Stores the merged context in the pipeline workpiece to use it on error logging
 
 **Error handling:**
 
-//FIXME each projector logs its own errors with "ap.error" stage
+Done in `asyncErrorHandler.OnError()` handler
 
-- Any context-aware error happens -> the error is wrapped into struct `errWithCtx{error, logCtx}`
-- The error is not `errWithCtx` -> fall back to VVM context
-- The resulting context is used on `logger.ErrorCtx()` with stage `ap`
+- Uses the context stored in the pipeline workpiece
+- Logs the error: level `Error`, stage `ap.error`, msg `<error message>`
 
 ---
 
@@ -282,6 +290,7 @@ Adds logging attributes to context for propagation through call chain.
   - Thread-safe: immutable chain structure
 
 - **Usage pattern:**
+
   ```go
   ctx = logger.WithContextAttrs(ctx, map[string]any{
       logger.LogAttr_ReqID: "03061504-42",
@@ -334,10 +343,12 @@ Automatically append context attributes and stage to log entries using slog.
 
 - **Used by:**
   - Router: request acceptance, error logging
-  - Command processor: error, success, event/CUD logging
-  - Actualizers: error and event logging
+  - Processors: error, success, event/CUD logging
+  - Sync Actualizers: error, success logging
+  - Async Actualizers: error, success, event/CUD logging
 
 - **Usage example:**
+
   ```go
   logger.VerboseCtx(ctx, "routing", "request accepted")
   logger.ErrorCtx(ctx, "cp.error", "command failed:", err)
