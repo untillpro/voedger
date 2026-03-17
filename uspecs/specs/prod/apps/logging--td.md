@@ -210,12 +210,12 @@ The context with attributes is received from Router
 
 Launched by command processor between `ApplyRecords` and `PutWLog` stages
 
-- Uses the context got from `processors.LogEventAndCUDs()` with attribs `woffset`, `poffset`, `evqname`
+- Use the context from `processors.LogEventAndCUDs()` with attribs `woffset`, `poffset`, `evqname`
 - Command processor logs:
   - After all sync projectors success: level `Verbose`, stage `sp.success`, msg (empty)
   - Logs the projector error: level `Error`, stage `sp.error`, msg `<error message>`
 - Each triggered sync projector:
-  - Logs the trigger QName right before `IAppParts.Invoke()`: level `Verbose`, stage `sp.triggeredby`, msg `<triggered by qname>`, `extension`=`<projector QName>`
+  - Logs the trigger QName right before `IAppParts.Invoke()`: level `Verbose`, stage `sp.triggeredby`, msg `<triggered by qname>`, extension `<projector QName>`
   - After success Invoke: level `Verbose`, stage `sp.success`, `extension`=`<projector QName>`, msg (empty)
 
 ### Async Projectors
@@ -237,14 +237,14 @@ Stage is `ap`
     - ODoc/ORecord-triggered: logs all CUDs
     - Other triggers: logs only CUDs matching trigger QName
   - eventMessageAdds: `triggeredby=<QName>`
-- Merges the context got from `processors.LogEventAndCUDs` and the ctx with `vapp` and `extension` attribs
-- Stores the merged context in the pipeline workpiece to use it on error logging
+- Constructs event context - merge the context got from `processors.LogEventAndCUDs` and the ctx with `vapp` and `extension` attribs
+- Stores the event context in the pipeline workpiece to use it on error logging
 
 **Error handling:**
 
 Done in `asyncErrorHandler.OnError()` handler
 
-- Uses the context stored in the pipeline workpiece
+- Uses the event context
 - Logs the error: level `Error`, stage `ap.error`, msg `<error message>`
 
 ---
