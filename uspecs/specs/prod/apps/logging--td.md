@@ -257,7 +257,6 @@ Done in `asyncErrorHandler.OnError()` handler
 
 Provides structured logging with context-aware attribute propagation.
 
-
 - **Files:**
   - `logger.go`: Core logging functions and level management
   - `loggerctx.go`: Context-aware logging functions
