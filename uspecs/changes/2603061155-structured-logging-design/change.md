@@ -15,14 +15,15 @@ See [issue.md](issue.md) for details.
 
 ## What
 
-Design a logging subsystem architecture that provides:
+Design a structured logging subsystem that provides:
 
-- Ability to trace command, query, and event processing
-- Tracking of vapp, reqid, wsid, and extension stages
-- Duration measurement for each processing stage
-- Structured logging format for consistent log analysis
+- Context-aware `*Ctx` logging functions with `stage` parameter, backed by `log/slog`
+- Standard log attributes: `vapp`, `reqid`, `wsid`, `extension`, `feat`, `stage`
+- Per-component logging spec: Router, Command Processor, Query Processor, Sync/Async Projectors
+- Shared `processors.LogEventAndCUDs()` utility for event and CUD logging
+
+See [logging--td.md](../../specs/prod/apps/logging--td.md) for details.
 
 Testing:
 
-- Unit tests for context-aware logging functions
-- Tests for logging in command processor and actualizer
+- Unit tests for context-aware logging functions (`pkg/goutils/logger`)
