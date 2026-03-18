@@ -196,6 +196,7 @@ The context with attributes is received from Router
 The context with attributes is received from Router
 
 - query execution error: level `Error`, stage `qp.error`, msg `<error message>`
+- Logs success right after `execQuery` returns: level `Verbose`, stage `qp.success`, msg (empty)
 
 ### Sync Projectors
 

@@ -69,6 +69,7 @@ func implServiceFactory(serviceChannel iprocbus.ServiceChannel,
 						}
 						qwork.metrics.Increase(queryprocessor.Metric_ExecSeconds, time.Since(now).Seconds())
 						if err == nil {
+							logger.VerboseCtx(qwork.msg.RequestCtx(), "qp.success")
 							if err = processors.CheckResponseIntent(qwork.state); err == nil {
 								err = qwork.state.ApplyIntents()
 							}
@@ -90,7 +91,7 @@ func implServiceFactory(serviceChannel iprocbus.ServiceChannel,
 					statusCode := http.StatusOK
 					if err != nil {
 						statusCode = err.(coreutils.SysError).HTTPStatus // nolint:errorlint
-						logger.Error(fmt.Sprintf("%d/%s exec error: %s", qwork.msg.WSID(), qwork.msg.QName(), err))
+						logger.ErrorCtx(qwork.msg.RequestCtx(), "qp.error", err)
 					}
 					if qwork.apiPathHandler.isArrayResult {
 						if qwork.responseWriterGetter == nil || qwork.responseWriterGetter() == nil {
@@ -102,8 +103,7 @@ func implServiceFactory(serviceChannel iprocbus.ServiceChannel,
 						respWriter.Close(err)
 					} else if err != nil {
 						respondErr := qwork.msg.Responder().Respond(bus.ResponseMeta{ContentType: httpu.ContentType_ApplicationJSON, StatusCode: statusCode}, err)
-						if respondErr != nil {
-							logger.Error(fmt.Sprintf("failed to send the error %s: %s", err.Error(), respondErr.Error()))
+						if respondErr != nil { // notest
 						}
 					}
 				}()

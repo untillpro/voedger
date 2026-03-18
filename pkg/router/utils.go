@@ -162,7 +162,7 @@ func withLogAttribs(ctx context.Context, data validatedData, busRequest bus.Requ
 
 func logLatency(ctx context.Context, sentAt time.Time) {
 	if logger.IsVerbose() {
-		logger.VerboseCtx(ctx, "routing.latency1", fmt.Sprintf("%d", time.Since(sentAt).Milliseconds()))
+		logger.VerboseCtx(ctx, "routing.latency1", fmt.Sprintf("%dms", time.Since(sentAt).Milliseconds()))
 	}
 }
 

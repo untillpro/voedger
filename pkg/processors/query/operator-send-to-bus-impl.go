@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/voedger/voedger/pkg/bus"
-	"github.com/voedger/voedger/pkg/goutils/logger"
 	"github.com/voedger/voedger/pkg/pipeline"
 )
 
@@ -37,6 +36,5 @@ func (o *SendToBusOperator) OnError(_ context.Context, err error) {
 	select {
 	case o.errCh <- err:
 	default:
-		logger.Error("failed to send error from rowsProcessor to QP: " + err.Error())
 	}
 }

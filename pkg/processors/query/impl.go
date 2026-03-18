@@ -127,6 +127,7 @@ func implServiceFactory(serviceChannel iprocbus.ServiceChannel,
 						p = nil
 					} else {
 						if err = execQuery(ctx, qwork); err == nil {
+							logger.VerboseCtx(qwork.msg.RequestCtx(), "qp.success")
 							if err = processors.CheckResponseIntent(qwork.state); err == nil {
 								err = qwork.state.ApplyIntents()
 							}
@@ -148,7 +149,7 @@ func implServiceFactory(serviceChannel iprocbus.ServiceChannel,
 					statusCode := http.StatusOK
 					if err != nil {
 						statusCode = err.(coreutils.SysError).HTTPStatus // nolint:errorlint
-						logger.Error(fmt.Sprintf("%d/%s exec error: %s", qwork.msg.WSID(), qwork.msg.QName(), err))
+						logger.ErrorCtx(qwork.msg.RequestCtx(), "qp.error", err)
 					}
 					if qwork.responseWriterGetter == nil || qwork.responseWriterGetter() == nil {
 						// have an error before 200ok is sent -> send the status from the actual error

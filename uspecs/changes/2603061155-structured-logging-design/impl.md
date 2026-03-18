@@ -144,20 +144,25 @@
   - update: `TestRecovery` — capture logs after restart; assert `stage=cp.partition_recovery.start`, `stage=cp.partition_recovery.complete`, `vapp=sys/voedger`, `extension=sys._Recovery`, `partid=`
   - update: `TestRecoveryOnSyncProjectorError` — capture logs after sync projector failure; assert `stage=cp.partition_recovery`, `vapp=sys/voedger`, `extension=sys._Recovery`, `"partition will be restarted"`
 
-- [ ] Review
+- [x] Review
 
 ### Query processor
 
-- [ ] update: [pkg/processors/query/impl.go](../../../pkg/processors/query/impl.go)
+- [x] update: [pkg/processors/query/impl.go](../../../pkg/processors/query/impl.go)
   - update: Query execution error: level `Error`, stage `qp.error`, msg `<error message>` (replace current `logger.Error(fmt.Sprintf(...))` with `logger.ErrorCtx`)
+  - add: Query execution success: level `Verbose`, stage `qp.success`, msg (empty) — logged right after `execQuery` returns `nil`
   - keep: `logger.Verbose("newACL not ok, but oldACL ok."...)` in ACL check
 
-- [ ] update: [pkg/processors/query2/impl.go](../../../pkg/processors/query2/impl.go)
+- [x] update: [pkg/processors/query2/impl.go](../../../pkg/processors/query2/impl.go)
   - update: Query execution error: level `Error`, stage `qp.error`, msg `<error message>` (replace current `logger.Error(fmt.Sprintf(...))` with `logger.ErrorCtx`)
+  - add: Query execution success: level `Verbose`, stage `qp.success`, msg (empty) — logged right after `exec` handler returns `nil`
   - drop: `logger.Error(fmt.Sprintf("failed to send the error %s: %s"...))` in error response sending
 
-- [ ] update: [pkg/processors/query/operator-send-to-bus-impl.go](../../../pkg/processors/query/operator-send-to-bus-impl.go)
+- [x] update: [pkg/processors/query/operator-send-to-bus-impl.go](../../../pkg/processors/query/operator-send-to-bus-impl.go)
   - drop: `logger.Error("failed to send error from rowsProcessor to QP: "...)` in `OnError`
+
+- [x] update: [pkg/processors/query/impl_test.go](../../../pkg/processors/query/impl_test.go)
+  - update: `TestRateLimiter` — capture logs via `syncBuffer` at `LogLevelVerbose`; assert `stage=qp.success` and no `qp.error` on successful requests; assert `stage=qp.error` and no `qp.success` on rate-limited request
 
 - [ ] Review
 
