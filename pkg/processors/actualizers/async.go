@@ -471,7 +471,7 @@ func logEventAndCUDs(logCtx context.Context, event istructs.IPLogEvent,
 	triggeredByKind := appDef.Type(triggeredByQName).Kind()
 	triggeredByFunc := appdef.TypeKind_Functions.Contains(triggeredByKind)
 	triggeredByODoc := triggeredByKind == appdef.TypeKind_ODoc || triggeredByKind == appdef.TypeKind_ORecord
-	return processors.LogEventAndCUDs(logCtx, event, pLogOffset, appDef, 2,
+	return processors.LogEventAndCUDs(logCtx, event, pLogOffset, appDef, 2, "",
 		func(cud istructs.ICUDRow) (bool, string, error) {
 			return triggeredByFunc || triggeredByODoc || cud.QName() == triggeredByQName, "", nil
 		},

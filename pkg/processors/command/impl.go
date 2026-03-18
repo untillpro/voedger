@@ -351,6 +351,7 @@ func logEventAndCUDs(_ context.Context, cmd *cmdWorkpiece) (err error) {
 		cmd.rawEvent.PLogOffset(),
 		cmd.appStructs.AppDef(),
 		0,
+		"",
 		func(cud istructs.ICUDRow) (bool, string, error) {
 			if oldRec, ok := oldRecs[cud.ID()]; ok {
 				oldFields, err := json.Marshal(coreutils.FieldsToMap(oldRec, cmd.appStructs.AppDef()))

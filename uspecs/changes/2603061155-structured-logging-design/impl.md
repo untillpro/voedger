@@ -19,11 +19,11 @@
 - [x] run: Logger tests
   - `go test -short ./pkg/goutils/logger/...`
 
-- [ ] Review
+- [x] Review
 
 ### Shared utilities
 
-- [ ] update: [pkg/processors/utils.go](../../../pkg/processors/utils.go)
+- [x] update: [pkg/processors/utils.go](../../../pkg/processors/utils.go)
   - update: Add `stage string` and `skipStackFrames int` parameters to `LogEventAndCUDs`
   - update: Add `perCUDLogCallback func(istructs.ICUDRow) (bool, string, error)` and `eventMessageAdds string` parameters
   - update: Enrich context with `woffset`, `poffset`, `evqname` attributes
@@ -31,7 +31,7 @@
   - update: For each CUD: call `perCUDLogCallback`; if `shouldLog`, enrich context with `rectype`, `recid`, `op`; log at Verbose with stage `<stage>.log_cud`, msg `newfields={...}{msgAdds}`
   - update: Return the enriched context
 
-- [ ] Review
+- [x] Review
 
 ### HTTP server
 
