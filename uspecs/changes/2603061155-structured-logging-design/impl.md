@@ -89,7 +89,7 @@
   - update: `ReleaseLeadership` — use `leadershipLogCtx(key)` and pass it to `releaseLeadership`
   - update: `renewWithRetry` — pass its existing `ctx` to `releaseLeadership`
 
-- [ ] Review
+- [x] Review
 
 ### Router
 
