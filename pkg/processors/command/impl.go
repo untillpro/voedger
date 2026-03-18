@@ -262,7 +262,17 @@ func updateIDGeneratorFromO(root istructs.IObject, findType appdef.FindType, idG
 	}
 }
 
+func newRecoveryCtx(ctx context.Context, partID istructs.PartitionID) context.Context {
+	return logger.WithContextAttrs(ctx, map[string]any{
+		logger.LogAttr_VApp:      sys.VApp_SysVoedger,
+		logger.LogAttr_Extension: "sys._Recovery",
+		"partid":                 partID,
+	})
+}
+
 func (cmdProc *cmdProc) recovery(ctx context.Context, cmd *cmdWorkpiece) (*appPartition, error) {
+	recoveryCtx := newRecoveryCtx(cmd.cmdMes.RequestCtx(), cmd.cmdMes.PartitionID())
+	logger.InfoCtx(recoveryCtx, "cp.partition_recovery.start", "")
 	ap := &appPartition{
 		workspaces:     map[istructs.WSID]*workspace{},
 		nextPLogOffset: istructs.FirstOffset,
@@ -292,6 +302,7 @@ func (cmdProc *cmdProc) recovery(ctx context.Context, cmd *cmdWorkpiece) (*appPa
 	}
 
 	if err := cmd.appStructs.Events().ReadPLog(ctx, cmd.cmdMes.PartitionID(), istructs.FirstOffset, istructs.ReadToTheEnd, cb); err != nil {
+		logger.ErrorCtx(recoveryCtx, "cp.partition_recovery.error", err)
 		return nil, err
 	}
 
@@ -317,7 +328,7 @@ func (cmdProc *cmdProc) recovery(ctx context.Context, cmd *cmdWorkpiece) (*appPa
 		// notest
 		return nil, err
 	}
-	logger.InfoCtx(cmd.cmdMes.RequestCtx(), "", "partition ", cmd.cmdMes.PartitionID(), " recovered: nextPLogOffset ", ap.nextPLogOffset, ", workspaces ", string(worskapcesJSON))
+	logger.InfoCtx(recoveryCtx, "cp.partition_recovery.complete", "completed, nextPLogOffset ", ap.nextPLogOffset, ", workspaces ", string(worskapcesJSON))
 	return ap, nil
 }
 
@@ -351,7 +362,7 @@ func logEventAndCUDs(_ context.Context, cmd *cmdWorkpiece) (err error) {
 		cmd.rawEvent.PLogOffset(),
 		cmd.appStructs.AppDef(),
 		0,
-		"",
+		"cp.plog_saved",
 		func(cud istructs.ICUDRow) (bool, string, error) {
 			if oldRec, ok := oldRecs[cud.ID()]; ok {
 				oldFields, err := json.Marshal(coreutils.FieldsToMap(oldRec, cmd.appStructs.AppDef()))
@@ -865,9 +876,6 @@ func (cmdProc *cmdProc) notifyAsyncActualizers(ctx context.Context, cmd *cmdWork
 		Projection: actualizers.PLogUpdatesQName,
 		WS:         istructs.WSID(cmd.cmdMes.PartitionID()),
 	}, cmd.rawEvent.PLogOffset())
-	if logger.IsVerbose() {
-		logger.VerboseCtx(cmd.cmdMes.RequestCtx(), "", "async actualizers are notified: offset ", cmd.rawEvent.PLogOffset(), ", pnumber ", cmd.cmdMes.PartitionID())
-	}
 	return nil
 }
 
@@ -895,8 +903,7 @@ func sendResponse(cmd *cmdWorkpiece, handlingError error) {
 		cmdResultBytes, err := json.Marshal(cmdResult)
 		if err != nil {
 			// notest
-			logger.ErrorCtx(cmd.cmdMes.RequestCtx(), "", "failed to marshal response: "+err.Error(), ", response: ", cmdResult)
-			return
+			panic("failed to marshal response: " + err.Error())
 		}
 		body.WriteString(`,"Result":`)
 		body.Write(cmdResultBytes)

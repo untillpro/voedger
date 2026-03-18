@@ -123,7 +123,7 @@
 
 ### Command processor
 
-- [ ] update: [pkg/processors/command/impl.go](../../../pkg/processors/command/impl.go)
+- [x] update: [pkg/processors/command/impl.go](../../../pkg/processors/command/impl.go)
   - update: `logEventAndCUDs` to pass stage `cp.plog_saved` to `processors.LogEventAndCUDs`; per-CUD callback returns `shouldLog=true`, `msgAdds=",oldfields={...}"` for HTTP CUDs, empty for command-created CUDs; `eventMessageAdds` is empty
   - update: `recovery` to create context with `vapp=sys.VApp_SysVoedger`, `extension="sys._Recovery"`, `partid` attrib
   - update: Recovery start: level `Info`, stage `cp.partition_recovery.start`, msg (empty)
@@ -133,10 +133,16 @@
   - drop: `logger.VerboseCtx(..."async actualizers are notified..."...)` in `notifyAsyncActualizers`
   - replace logging "failed to marhsal response" with `panic("failed to marhsal response: <err>")` in `sendResponse`
 
-- [ ] update: [pkg/processors/command/provide.go](../../../pkg/processors/command/provide.go)
+- [x] update: [pkg/processors/command/provide.go](../../../pkg/processors/command/provide.go)
   - update: `logHandlingError` — level `Error`, stage `cp.error`, msg `<error message>`, `body=<compacted request body>`
   - update: `logSuccess` — level `Verbose`, stage `cp.success`, msg `<command result>`
   - update: Partition restart warning — stage `cp.partition_recovery`, level `Warning`, with `vapp` replaced with `sys.VApp_SysVoedger`, `extension` replaced with `sys._Recovery`
+
+- [x] update: [pkg/processors/command/impl_test.go](../../../pkg/processors/command/impl_test.go)
+  - update: `TestLogEventAndCUDs` — assert `stage=cp.plog_saved` in captured log output
+  - update: `TestBasicUsage` — capture logs via `syncBuffer`; assert `stage=cp.success` on success, `stage=cp.error` + error message on failure
+  - update: `TestRecovery` — capture logs after restart; assert `stage=cp.partition_recovery.start`, `stage=cp.partition_recovery.complete`, `vapp=sys/voedger`, `extension=sys._Recovery`, `partid=`
+  - update: `TestRecoveryOnSyncProjectorError` — capture logs after sync projector failure; assert `stage=cp.partition_recovery`, `vapp=sys/voedger`, `extension=sys._Recovery`, `"partition will be restarted"`
 
 - [ ] Review
 
