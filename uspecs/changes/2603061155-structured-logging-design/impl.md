@@ -164,7 +164,7 @@
 - [x] update: [pkg/processors/query/impl_test.go](../../../pkg/processors/query/impl_test.go)
   - update: `TestRateLimiter` — capture logs via `syncBuffer` at `LogLevelVerbose`; assert `stage=qp.success` and no `qp.error` on successful requests; assert `stage=qp.error` and no `qp.success` on rate-limited request
 
-- [ ] Review
+- [x] Review
 
 ### Sync projectors
 
