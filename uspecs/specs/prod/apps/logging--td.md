@@ -110,6 +110,7 @@ HTTP root context is derived from VVM context:
 
 Uses `vapp="sys/voedger"`, `extension="sys._Leadership"`, `key` attribs.
 
+- When elections are finalized: level `Warning`, stage `leadership.acquire.finalized`, msg `elections cleaned up; cannot acquire leadership`
 - On each attempt when another node holds leadership: level `Info`, stage `leadership.acquire.other`, msg `leadership already acquired by someone else`
 - On storage error: level `Error`, stage `leadership.acquire.error`, msg `InsertIfNotExist failed: <err>`
 - On acquire success: level `Info`, stage `leadership.acquire.success`, msg `success`
@@ -124,6 +125,13 @@ Uses `vapp="sys/voedger"`, `extension="sys._Leadership"`, `key` attribs.
 - On leadership stolen: level `Error`, stage `leadership.maintain.stolen`, msg `compareAndSwap !ok => release`
 - On all retries exhausted within interval: level `Error`, stage `leadership.maintain.release`, msg `retry deadline reached, releasing. Last error: <err>`
 - On error after `processKillThreshold` (TTL/4), before `os.Exit(1)`: level `Error`, stage `leadership.maintain.terminating`, msg `the process is still alive after the time alloted for graceful shutdown -> terminating...`
+
+#### Leadership release
+
+Uses `vapp="sys/voedger"`, `extension="sys._Leadership"`, `key` attribs.
+
+- When `ReleaseLeadership` is called but this node is not the leader: level `Warning`, stage `leadership.release.notleader`, msg `we're not the leader`
+- On successful release: level `Info`, stage `leadership.released`, msg (empty)
 
 ---
 

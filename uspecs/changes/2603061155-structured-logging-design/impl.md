@@ -71,8 +71,9 @@
 
 ### Leadership
 
-- [ ] update: [pkg/ielections/impl.go](../../../pkg/ielections/impl.go)
-  - update: `AcquireLeadership` and `maintainLeadership` to accept/create a context with `vapp=sys.VApp_SysVoedger`, `extension="sys._Leadership"`, `key` attribs
+- [x] update: [pkg/ielections/impl.go](../../../pkg/ielections/impl.go)
+  - add: `leadershipLogCtx[K any](key K) context.Context` — helper that builds log context with `vapp=sys.VApp_SysVoedger`, `extension="sys._Leadership"`, `key` attribs
+  - update: `AcquireLeadership` — use `leadershipLogCtx(key)` instead of inline map literal; on `isFinalized`: `logger.WarningCtx(logCtx, "leadership.acquire.finalized", "elections cleaned up; cannot acquire leadership")`
   - update: Replace `logger.Verbose(fmt.Sprintf("Key=%v: leadership already acquired..."` with `logger.InfoCtx(ctx, "leadership.acquire.other", "leadership already acquired by someone else")`
   - update: Replace `logger.Error(fmt.Sprintf("Key=%v: InsertIfNotExist failed..."` with `logger.ErrorCtx(ctx, "leadership.acquire.error", "InsertIfNotExist failed:", err)`
   - update: Replace `logger.Info(fmt.Sprintf("Key=%v: leadership acquired"` with `logger.InfoCtx(ctx, "leadership.acquire.success", "success")`
@@ -83,6 +84,10 @@
   - update: On retry deadline reached: `logger.ErrorCtx(ctx, "leadership.maintain.release", "retry deadline reached, releasing. Last error:", err)`
   - add: On error after processKillThreshold: `logger.ErrorCtx(ctx, "leadership.maintain.terminating", "the process is still alive after the time alloted for graceful shutdown -> terminating...")`
   - update: Drop all other logging not described in TD
+  - add: `releaseLeadership(ctx, key)` — add `ctx context.Context` param; when key not found: `logger.WarningCtx(ctx, "leadership.release.notleader", "we're not the leader")`
+  - add: `releaseLeadership` — on success before cancel: `logger.InfoCtx(li.ctx, "leadership.released", "")`
+  - update: `ReleaseLeadership` — use `leadershipLogCtx(key)` and pass it to `releaseLeadership`
+  - update: `renewWithRetry` — pass its existing `ctx` to `releaseLeadership`
 
 - [ ] Review
 

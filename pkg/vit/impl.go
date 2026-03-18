@@ -334,7 +334,7 @@ func (vit *VIT) TearDown() {
 	vit.emailCaptor.checkEmpty(vit.T)
 	vit.checkVVMProblemCtx()
 	if vit.isOnSharedConfig {
-		return
+		// return
 	}
 	vit.emailCaptor.shutDown()
 	require.NoError(vit.T, vit.Shutdown())
