@@ -6,6 +6,7 @@
 package btstrp
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 
@@ -14,12 +15,14 @@ import (
 	"github.com/voedger/voedger/pkg/cluster"
 	"github.com/voedger/voedger/pkg/coreutils/federation"
 	"github.com/voedger/voedger/pkg/goutils/httpu"
+	"github.com/voedger/voedger/pkg/goutils/logger"
 	"github.com/voedger/voedger/pkg/goutils/timeu"
 	"github.com/voedger/voedger/pkg/istorage"
 	"github.com/voedger/voedger/pkg/istructs"
 	"github.com/voedger/voedger/pkg/itokens"
 	payloads "github.com/voedger/voedger/pkg/itokens-payloads"
 	blobprocessor "github.com/voedger/voedger/pkg/processors/blobber"
+	"github.com/voedger/voedger/pkg/sys"
 	"github.com/voedger/voedger/pkg/vvm/builtin/clusterapp"
 )
 
@@ -28,10 +31,17 @@ func Bootstrap(federation federation.IFederation, asp istructs.IAppStructsProvid
 	postWiredInterfacePtrs PostWireInterfacePtrs, blobHandler blobprocessor.IRequestHandler,
 	requestSender bus.IRequestSender) (err error) {
 
+	logCtx := logger.WithContextAttrs(context.Background(), map[string]any{
+		logger.LogAttr_VApp:      sys.VApp_SysVoedger,
+		logger.LogAttr_Extension: "sys._Bootstrap",
+	})
+	logger.InfoCtx(logCtx, "bootstrap", "started")
+
 	// initialize cluster app workspace, use app ws amount 0
 	if err := initClusterAppWS(asp, time); err != nil {
 		return err
 	}
+	logger.InfoCtx(logCtx, "bootstrap", "cluster app workspace initialized")
 
 	// Initialize AppStorageBlobber (* IAppStorage), AppStorageRouter (* IAppStorage)
 	if *postWiredInterfacePtrs.BlobberAppStorage, err = storageProvider.AppStorage(istructs.AppQName_sys_blobber); err != nil {
@@ -59,28 +69,32 @@ func Bootstrap(federation federation.IFederation, asp istructs.IAppStructsProvid
 
 	// For each app in otherApps: check apps compatibility by calling c.cluster.DeployApp
 	for _, app := range otherApps {
+		logger.InfoCtx(logCtx, "bootstrap.appdeploy.builtin", app.Name)
 		callDeployApp(federation, sysToken, app)
 	}
 	for _, sidecarApp := range sidecarApps {
+		logger.InfoCtx(logCtx, "bootstrap.appdeploy.sidecar", sidecarApp.BuiltInApp.Name)
 		callDeployApp(federation, sysToken, sidecarApp.BuiltInApp)
 	}
 
 	// For each app builtInApps: deploy a builtin app
 	for _, app := range otherApps {
-		deployAppPartitions(appparts, app, nil)
+		deployAppPartitions(logCtx, "bootstrap.apppartdeploy.builtin", appparts, app, nil)
 	}
 	for _, app := range sidecarApps {
-		deployAppPartitions(appparts, app.BuiltInApp, app.ExtModuleURLs)
+		deployAppPartitions(logCtx, "bootstrap.apppartdeploy.sidecar", appparts, app.BuiltInApp, app.ExtModuleURLs)
 	}
 
+	logger.InfoCtx(logCtx, "bootstrap", "completed")
 	return nil
 }
 
-func deployAppPartitions(appparts appparts.IAppPartitions, app appparts.BuiltInApp, extModuleURLs map[string]*url.URL) {
+func deployAppPartitions(ctx context.Context, stage string, appparts appparts.IAppPartitions, app appparts.BuiltInApp, extModuleURLs map[string]*url.URL) {
 	appparts.DeployApp(app.Name, extModuleURLs, app.Def, app.NumParts, app.EnginePoolSize, app.NumAppWorkspaces)
 	partitionIDs := make([]istructs.PartitionID, app.NumParts)
 	for id := istructs.NumAppPartitions(0); id < app.NumParts; id++ {
 		partitionIDs[id] = istructs.PartitionID(id)
+		logger.InfoCtx(ctx, stage, fmt.Sprintf("%s/%d", app.Name, id))
 	}
 	appparts.DeployAppPartitions(app.Name, partitionIDs)
 }

@@ -57,15 +57,17 @@
 
 ### Bootstrap
 
-- [ ] update: [pkg/btstrp/impl.go](../../../pkg/btstrp/impl.go)
+- [x] update: [pkg/btstrp/impl.go](../../../pkg/btstrp/impl.go)
   - add: Create log context with `vapp=sys.VApp_SysVoedger`, `extension="sys._Bootstrap"` using `logger.WithContextAttrs`
   - add: Bootstrap starts: level `Info`, stage `bootstrap`, msg `started`
   - update: logging cluster app workspace initied already, cluster app workspace init, and app deploys: level `Info`, stage `bootstrap`
-  - add: For each app: level `Info`, stage `bootstrap.appdeploy`, msg `<appQName>`
-  - add: For each app partition: level `Info`, stage `bootstrap.apppartdeploy`, msg `<appQName>/<partID>`
+  - add: For each built-in app: level `Info`, stage `bootstrap.appdeploy.builtin`, msg `<appQName>`
+  - add: For each sidecar app: level `Info`, stage `bootstrap.appdeploy.sidecar`, msg `<appQName>`
+  - add: For each built-in app partition: level `Info`, stage `bootstrap.apppartdeploy.builtin`, msg `<appQName>/<partID>`
+  - add: For each sidecar app partition: level `Info`, stage `bootstrap.apppartdeploy.sidecar`, msg `<appQName>/<partID>`
   - add: Bootstrap completes: level `Info`, stage `bootstrap`, msg `completed`
 
-- [ ] Review
+- [x] Review
 
 ### Leadership
 

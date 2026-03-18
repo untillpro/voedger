@@ -99,8 +99,10 @@ HTTP root context is derived from VVM context:
 
 - Bootstrap starts: level `Info`, stage `bootstrap`, msg `started`
 - Cluster app workspace initialized: level `Info`, stage `bootstrap`, msg `cluster app workspace initialized`
-- For each built-in and sidecar app: level `Info`, stage `bootstrap.appdeploy`, msg `<appQName>`
-- For each app partition: level `Info`, stage `bootstrap.apppartdeploy`, msg `<appQName>/<partID>`
+- For each built-in app: level `Info`, stage `bootstrap.appdeploy.builtin`, msg `<appQName>`
+- For each sidecar app: level `Info`, stage `bootstrap.appdeploy.sidecar`, msg `<appQName>`
+- For each built-in app partition: level `Info`, stage `bootstrap.apppartdeploy.builtin`, msg `<appQName>/<partID>`
+- For each sidecar app partition: level `Info`, stage `bootstrap.apppartdeploy.sidecar`, msg `<appQName>/<partID>`
 - Bootstrap completes: level `Info`, stage `bootstrap`, msg `completed`
 - On app deployment failure: panics with `failed to deploy app <appName>: <error>` (no logging)
 
