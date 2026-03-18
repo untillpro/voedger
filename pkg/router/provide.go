@@ -26,10 +26,10 @@ import (
 func Provide(rp RouterParams, broker in10n.IN10nBroker, blobRequestHandler blobprocessor.IRequestHandler, autocertCache autocert.Cache,
 	requestSender bus.IRequestSender, numsAppsWorkspaces map[appdef.AppQName]istructs.NumAppWorkspaces, iTokens itokens.ITokens,
 	federation federation.IFederation, appTokensFactory payloads.IAppTokensFactory) (httpSrv IHTTPService, acmeSrv IACMEService, adminSrv IAdminService) {
-	httpServ := getRouterService("HTTP server", httpu.ListenAddr(rp.Port), rp, broker, blobRequestHandler,
+	httpServ := getRouterService("sys._HTTPServer", httpu.ListenAddr(rp.Port), rp, broker, blobRequestHandler,
 		requestSender, numsAppsWorkspaces, iTokens, federation, appTokensFactory)
 	adminEndpoint := fmt.Sprintf("%s:%d", httpu.LocalhostIP, rp.AdminPort)
-	adminSrv = getRouterService("Admin HTTP server", adminEndpoint, RouterParams{
+	adminSrv = getRouterService("sys._AdminHTTPServer", adminEndpoint, RouterParams{
 		HTTPServerParams: HTTPServerParams{
 			WriteTimeout:     rp.WriteTimeout,
 			ReadTimeout:      rp.ReadTimeout,
@@ -57,7 +57,7 @@ func Provide(rp RouterParams, broker in10n.IN10nBroker, blobRequestHandler blobp
 	if crtMgr.Cache == nil {
 		crtMgr.Cache = autocert.DirCache(rp.CertDir)
 	}
-	httpServ.name = "HTTPS server"
+	httpServ.name = "sys._HTTPSServer"
 	httpsService := &httpsService{
 		routerService: httpServ,
 		crtMgr:        crtMgr,
@@ -65,7 +65,7 @@ func Provide(rp RouterParams, broker in10n.IN10nBroker, blobRequestHandler blobp
 
 	// handle Lets Encrypt callback over 80 port - only port 80 allowed
 	acmeService := &acmeService{
-		httpServer: getHTTPServer("ACME HTTP server", ":80", HTTPServerParams{
+		httpServer: getHTTPServer("sys._ACMEServer", ":80", HTTPServerParams{
 			WriteTimeout: int(DefaultACMEServerWriteTimeout.Seconds()),
 			ReadTimeout:  int(DefaultACMEServerReadTimeout.Seconds()),
 		}),

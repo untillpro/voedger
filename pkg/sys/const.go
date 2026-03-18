@@ -13,6 +13,7 @@ import (
 
 const PackageName = "sys"
 const PackagePath = "github.com/voedger/voedger/pkg/sys"
+const VApp_SysVoedger = "sys/voedger"
 
 //go:embed *.vsql
 var SysFS embed.FS

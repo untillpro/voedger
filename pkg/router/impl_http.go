@@ -21,6 +21,7 @@ import (
 	"github.com/voedger/voedger/pkg/bus"
 	"github.com/voedger/voedger/pkg/goutils/httpu"
 	"github.com/voedger/voedger/pkg/goutils/logger"
+	"github.com/voedger/voedger/pkg/sys"
 	"golang.org/x/net/netutil"
 
 	"github.com/voedger/voedger/pkg/istructs"
@@ -38,7 +39,7 @@ func (s *httpsService) Prepare(work interface{}) error {
 func (s *httpsService) Run(ctx context.Context) {
 	s.preRun(ctx)
 	if err := s.server.ServeTLS(s.listener, "", ""); err != http.ErrServerClosed {
-		s.log("ServeTLS() error: %s", err.Error())
+		logger.ErrorCtx(s.rootLogCtx, "endpoint.unexpectedstop", err.Error())
 	}
 }
 
@@ -97,23 +98,22 @@ func (s *httpServer) prepareBasicServer(handler http.Handler) (err error) {
 }
 
 func (s *httpServer) preRun(ctx context.Context) {
-	s.rootLogCtx = logger.WithContextAttrs(ctx, map[string]any{logger.LogAttr_VApp: "sys/voedger"})
+	s.rootLogCtx = logger.WithContextAttrs(ctx, map[string]any{
+		logger.LogAttr_VApp:      sys.VApp_SysVoedger,
+		logger.LogAttr_Extension: s.name,
+	})
 	s.server.BaseContext = func(l net.Listener) context.Context {
 		return s.rootLogCtx // need to track both client disconnect and app finalize
 	}
-	s.log("starting on %s", s.listener.Addr().(*net.TCPAddr).String())
+	logger.InfoCtx(s.rootLogCtx, "endpoint.listen.start", s.listener.Addr().(*net.TCPAddr).String())
 }
 
 // pipeline.IService
 func (s *httpServer) Run(ctx context.Context) {
 	s.preRun(ctx)
 	if err := s.server.Serve(s.listener); err != http.ErrServerClosed {
-		s.log("Serve() error: %s", err.Error())
+		logger.ErrorCtx(s.rootLogCtx, "endpoint.unexpectedstop", "Serve() error: ", err.Error())
 	}
-}
-
-func (s *httpServer) log(format string, args ...interface{}) {
-	logger.LogCtx(s.rootLogCtx, 1, logger.LogLevelInfo, "", fmt.Sprintf("%s: %s", s.name, fmt.Sprintf(format, args...)))
 }
 
 // pipeline.IService
@@ -122,10 +122,12 @@ func (s *httpServer) Stop() {
 	// all connections and listeners are closed in the explicit way (they're tracks ctx.Done()) so it is not necessary to track ctx here
 	ctx := context.Background()
 	if err := s.server.Shutdown(ctx); err != nil {
-		s.log("Shutdown() failed: %s", err.Error())
+		logger.ErrorCtx(s.rootLogCtx, "endpoint.shutdown.error", err.Error())
 		s.listener.Close()
 		s.server.Close()
+		return
 	}
+	logger.InfoCtx(s.rootLogCtx, "endpoint.shutdown")
 }
 
 func (s *httpServer) GetPort() int {

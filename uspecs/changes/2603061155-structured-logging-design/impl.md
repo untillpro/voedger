@@ -21,7 +21,7 @@
 
 - [x] Review
 
-### Shared utilities
+### Shared utilities & consts
 
 - [x] update: [pkg/processors/utils.go](../../../pkg/processors/utils.go)
   - update: Add `stage string` and `skipStackFrames int` parameters to `LogEventAndCUDs`
@@ -31,28 +31,34 @@
   - update: For each CUD: call `perCUDLogCallback`; if `shouldLog`, enrich context with `rectype`, `recid`, `op`; log at Verbose with stage `<stage>.log_cud`, msg `newfields={...}{msgAdds}`
   - update: Return the enriched context
 
+- [x] add: `sys.VApp_SysVoedger = "sys/voedger"` constant in [pkg/sys/const.go](../../../pkg/sys/const.go)
+
 - [x] Review
 
 ### HTTP server
 
-- [ ] update: [pkg/router/impl_http.go](../../../pkg/router/impl_http.go)
-  - update: `preRun` to add `extension` attrib (`sys._HTTPServer`, `sys._AdminHTTPServer`, `sys._HTTPSServer`, or `sys._ACMEServer`) via `logger.WithContextAttrs`
-  - update: `httpServer.log` to use `stage` parameter (currently a generic log call)
+- [x] update: [pkg/router/impl_http.go](../../../pkg/router/impl_http.go)
+  - update: `preRun` to add `extension` attrib (from `httpServer.name` field: `sys._HTTPServer`, `sys._AdminHTTPServer`, `sys._HTTPSServer`, or `sys._ACMEServer`) via `logger.WithContextAttrs`; use `sys.VApp_SysVoedger` for `vapp` attrib
+  - update: `httpServer.log` removed — replaced with direct `logger.*Ctx` calls with appropriate stage and level
   - update: `preRun` log: level `Info`, stage `endpoint.listen.start`, msg `<addr>:<port>`
   - update: `Run` on unexpected Serve() error: level `Error`, stage `endpoint.unexpectedstop`, msg `Serve() error: <err>`
   - update: `httpsService.Run` on unexpected ServeTLS() error: level `Error`, stage `endpoint.unexpectedstop`, msg `ServeTLS() error: <err>`
   - update: `Stop` on Shutdown() failure: level `Error`, stage `endpoint.shutdown.error`, msg `<error message>`
   - add: On successful shutdown: level `Info`, stage `endpoint.shutdown`, msg (empty)
 
-- [ ] update: [pkg/router/impl_acme.go](../../../pkg/router/impl_acme.go)
-  - update: ACME server logging to use `extension="sys._ACMEServer"` and appropriate stages
+- [x] update: [pkg/router/impl_acme.go](../../../pkg/router/impl_acme.go)
+  - update: ACME server logging handled via `name` field on `httpServer` set to `sys._ACMEServer` in `provide.go`; `acmeService` inherits `Run`/`Stop` from `httpServer`
+
+- [x] update: [pkg/router/provide.go](../../../pkg/router/provide.go)
+  - remove: `httpServ.name = "HTTPS server"` assignment (`name` field now set to `"sys._HTTPSServer"` via `getHTTPServer`)
+  - update: call sites pass extension strings (`sys._HTTPServer`, etc.) as the `name` argument
 
 - [ ] Review
 
 ### Bootstrap
 
 - [ ] update: [pkg/btstrp/impl.go](../../../pkg/btstrp/impl.go)
-  - add: Create log context with `vapp="sys/voedger"`, `extension="sys._Bootstrap"` using `logger.WithContextAttrs`
+  - add: Create log context with `vapp=sys.VApp_SysVoedger`, `extension="sys._Bootstrap"` using `logger.WithContextAttrs`
   - add: Bootstrap starts: level `Info`, stage `bootstrap`, msg `started`
   - update: logging cluster app workspace initied already, cluster app workspace init, and app deploys: level `Info`, stage `bootstrap`
   - add: For each app: level `Info`, stage `bootstrap.appdeploy`, msg `<appQName>`
@@ -64,7 +70,7 @@
 ### Leadership
 
 - [ ] update: [pkg/ielections/impl.go](../../../pkg/ielections/impl.go)
-  - update: `AcquireLeadership` and `maintainLeadership` to accept/create a context with `vapp="sys/voedger"`, `extension="sys._Leadership"`, `key` attribs
+  - update: `AcquireLeadership` and `maintainLeadership` to accept/create a context with `vapp=sys.VApp_SysVoedger`, `extension="sys._Leadership"`, `key` attribs
   - update: Replace `logger.Verbose(fmt.Sprintf("Key=%v: leadership already acquired..."` with `logger.InfoCtx(ctx, "leadership.acquire.other", "leadership already acquired by someone else")`
   - update: Replace `logger.Error(fmt.Sprintf("Key=%v: InsertIfNotExist failed..."` with `logger.ErrorCtx(ctx, "leadership.acquire.error", "InsertIfNotExist failed:", err)`
   - update: Replace `logger.Info(fmt.Sprintf("Key=%v: leadership acquired"` with `logger.InfoCtx(ctx, "leadership.acquire.success", "success")`
@@ -108,7 +114,7 @@
 
 - [ ] update: [pkg/processors/command/impl.go](../../../pkg/processors/command/impl.go)
   - update: `logEventAndCUDs` to pass stage `cp.plog_saved` to `processors.LogEventAndCUDs`; per-CUD callback returns `shouldLog=true`, `msgAdds=",oldfields={...}"` for HTTP CUDs, empty for command-created CUDs; `eventMessageAdds` is empty
-  - update: `recovery` to create context with `vapp="sys/voedger"`, `extension="sys._Recovery"`, `partid` attrib
+  - update: `recovery` to create context with `vapp=sys.VApp_SysVoedger`, `extension="sys._Recovery"`, `partid` attrib
   - update: Recovery start: level `Info`, stage `cp.partition_recovery.start`, msg (empty)
   - update: Recovery complete: level `Info`, stage `cp.partition_recovery.complete`, msg `completed, nextPLogOffset and workspaces JSON`
   - add: Recovery failure: level `Error`, stage `cp.partition_recovery.error`, msg `<error message>`
@@ -119,7 +125,7 @@
 - [ ] update: [pkg/processors/command/provide.go](../../../pkg/processors/command/provide.go)
   - update: `logHandlingError` — level `Error`, stage `cp.error`, msg `<error message>`, `body=<compacted request body>`
   - update: `logSuccess` — level `Verbose`, stage `cp.success`, msg `<command result>`
-  - update: Partition restart warning — stage `cp.partition_recovery`, level `Warning`, with `vapp` replaced with `sys/voedger`, `extension` replaced with `sys._Recovery`
+  - update: Partition restart warning — stage `cp.partition_recovery`, level `Warning`, with `vapp` replaced with `sys.VApp_SysVoedger`, `extension` replaced with `sys._Recovery`
 
 - [ ] Review
 
@@ -225,7 +231,7 @@
 ### N10N broker lifecycle
 
 - [ ] update: [pkg/in10nmem/impl.go](../../../pkg/in10nmem/impl.go)
-  - add: Create log context in `NewN10nBroker` with `vapp="sys/voedger"`, `extension="sys._N10NBroker"`
+  - add: Create log context in `NewN10nBroker` with `vapp=sys.VApp_SysVoedger`, `extension="sys._N10NBroker"`
   - update: `notifier` start: level `Info`, stage `n10n.notifier.start`, msg (empty)
   - update: `notifier` stop: level `Info`, stage `n10n.notifier.stop`, msg (empty)
   - update: `heartbeat30` start: level `Info`, stage `n10n.heartbeat.start`, msg `Heartbeat30Duration: <duration>`
