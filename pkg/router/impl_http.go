@@ -113,7 +113,7 @@ func (s *httpServer) Run(ctx context.Context) {
 }
 
 func (s *httpServer) log(format string, args ...interface{}) {
-	logger.LogCtx(s.rootLogCtx, 1, logger.LogLevelInfo, fmt.Sprintf("%s: %s", s.name, fmt.Sprintf(format, args...)))
+	logger.LogCtx(s.rootLogCtx, 1, logger.LogLevelInfo, "", fmt.Sprintf("%s: %s", s.name, fmt.Sprintf(format, args...)))
 }
 
 // pipeline.IService
@@ -209,7 +209,7 @@ func RequestHandler_V1(requestSender bus.IRequestSender, numsAppsWorkspaces map[
 
 		responseCh, responseMeta, responseErr, err := requestSender.SendRequest(requestCtx, busRequest)
 		if err != nil {
-			logger.ErrorCtx(requestCtx, "sending request to VVM on", busRequest.Resource, "is failed:", err, ". Body:\n", string(busRequest.Body))
+			logger.ErrorCtx(requestCtx, "", "sending request to VVM on", busRequest.Resource, "is failed:", err, ". Body:\n", string(busRequest.Body))
 			writeCommonError_V1(rw, err, http.StatusInternalServerError)
 			return
 		}

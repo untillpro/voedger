@@ -241,9 +241,9 @@ func TestLoggerCtx_BasicUsage(t *testing.T) {
 		logger.LogAttr_WSID:      100,
 		logger.LogAttr_Extension: "c.sys.UploadBLOBHelper",
 	})
-	logger.InfoCtx(ctx, "hello ctx")
-	logger.VerboseCtx(ctx, "hello ctx")
-	logger.ErrorCtx(ctx, "hello ctx")
+	logger.InfoCtx(ctx, "stage1", "hello ctx")
+	logger.VerboseCtx(ctx, "stage2", "hello ctx")
+	logger.ErrorCtx(ctx, "stage3", "hello ctx")
 }
 
 // captureCtxOutput captures output produced by *Ctx logging functions.
@@ -272,7 +272,7 @@ func Test_WithContextAttrs(t *testing.T) {
 			logger.LogAttr_Feat: "magicmenu",
 		})
 		stdout, stderr := captureCtxOutput(func() {
-			logger.VerboseCtx(ctx, "hello ctx")
+			logger.VerboseCtx(ctx, "", "hello ctx")
 		})
 		require.Empty(stderr)
 		require.Contains(stdout, "hello ctx")
@@ -285,7 +285,7 @@ func Test_WithContextAttrs(t *testing.T) {
 		ctx := logger.WithContextAttrs(context.Background(), map[string]any{logger.LogAttr_VApp: "myapp"})
 		ctx = logger.WithContextAttrs(ctx, map[string]any{logger.LogAttr_Feat: "myfeat"})
 		stdout, _ := captureCtxOutput(func() {
-			logger.VerboseCtx(ctx, "accumulated")
+			logger.VerboseCtx(ctx, "", "accumulated")
 		})
 		require.Contains(stdout, "vapp=myapp")
 		require.Contains(stdout, "feat=myfeat")
@@ -296,7 +296,7 @@ func Test_WithContextAttrs(t *testing.T) {
 		ctx := logger.WithContextAttrs(context.Background(), map[string]any{logger.LogAttr_VApp: "first"})
 		ctx = logger.WithContextAttrs(ctx, map[string]any{logger.LogAttr_VApp: "second"})
 		stdout, _ := captureCtxOutput(func() {
-			logger.VerboseCtx(ctx, "overwrite")
+			logger.VerboseCtx(ctx, "", "overwrite")
 		})
 		require.Contains(stdout, "vapp=second")
 		require.NotContains(stdout, "vapp=first")
@@ -314,7 +314,7 @@ func Test_CtxFuncs_StandardAttrs(t *testing.T) {
 	})
 
 	stdout, _ := captureCtxOutput(func() {
-		logger.InfoCtx(ctx, "standard attrs")
+		logger.InfoCtx(ctx, "", "standard attrs")
 	})
 	require.Contains(stdout, "reqid=42")
 	require.Contains(stdout, "wsid=100")
@@ -325,7 +325,7 @@ func Test_CtxFuncs_SLogLevels(t *testing.T) {
 	testCases := []struct {
 		name       string
 		level      logger.TLogLevel
-		logFn      func(context.Context, ...interface{})
+		logFn      func(context.Context, string, ...interface{})
 		msg        string
 		wantLevel  string
 		wantStdErr bool
@@ -343,7 +343,7 @@ func Test_CtxFuncs_SLogLevels(t *testing.T) {
 			defer logger.SetLogLevelWithRestore(tc.level)()
 
 			stdout, stderr := captureCtxOutput(func() {
-				tc.logFn(context.Background(), tc.msg)
+				tc.logFn(context.Background(), "", tc.msg)
 			})
 
 			check := func(shouldBeEmpty, shouldBeNotEmpty string) {
@@ -368,7 +368,7 @@ func Test_CtxFuncs_LevelFiltering(t *testing.T) {
 		require := require.New(t)
 		defer logger.SetLogLevelWithRestore(logger.LogLevelInfo)()
 		stdout, stderr, err := testingu.CaptureStdoutStderr(func() error {
-			logger.VerboseCtx(ctx, "should not appear")
+			logger.VerboseCtx(ctx, "", "should not appear")
 			return nil
 		})
 		require.NoError(err)
@@ -381,7 +381,7 @@ func Test_CtxFuncs_LevelFiltering(t *testing.T) {
 		logger.SetLogLevel(logger.LogLevelInfo)
 		defer logger.SetLogLevel(logger.LogLevelInfo)
 		stdout, stderr, err := testingu.CaptureStdoutStderr(func() error {
-			logger.TraceCtx(ctx, "should not appear")
+			logger.TraceCtx(ctx, "", "should not appear")
 			return nil
 		})
 		require.NoError(err)
@@ -395,7 +395,7 @@ func Test_CtxFuncs_LevelFiltering(t *testing.T) {
 		defer logger.SetLogLevel(logger.LogLevelInfo)
 		ctx2 := logger.WithContextAttrs(ctx, map[string]any{"k": "v"})
 		stdout, stderr := captureCtxOutput(func() {
-			logger.ErrorCtx(ctx2, "boom")
+			logger.ErrorCtx(ctx2, "", "boom")
 		})
 		require.Empty(stdout)
 		require.Contains(stderr, "boom")
@@ -407,7 +407,7 @@ func Test_CtxFuncs_LevelFiltering(t *testing.T) {
 		logger.SetLogLevel(logger.LogLevelWarning)
 		defer logger.SetLogLevel(logger.LogLevelInfo)
 		stdout, _ := captureCtxOutput(func() {
-			logger.WarningCtx(ctx, "warn msg")
+			logger.WarningCtx(ctx, "", "warn msg")
 		})
 		require.Contains(stdout, "warn msg")
 	})
@@ -418,9 +418,31 @@ func Test_CtxFuncs_EmptyContext(t *testing.T) {
 	defer logger.SetLogLevelWithRestore(logger.LogLevelVerbose)()
 
 	stdout, _ := captureCtxOutput(func() {
-		logger.VerboseCtx(context.Background(), "no attrs")
+		logger.VerboseCtx(context.Background(), "", "no attrs")
 	})
 	require.Contains(stdout, "no attrs")
+}
+
+func Test_CtxFuncs_StageAttr(t *testing.T) {
+	defer logger.SetLogLevelWithRestore(logger.LogLevelVerbose)()
+
+	t.Run("stage appears when non-empty", func(t *testing.T) {
+		req := require.New(t)
+		stdout, _ := captureCtxOutput(func() {
+			logger.VerboseCtx(context.Background(), "endpoint.validation", "test msg")
+		})
+		req.Contains(stdout, "stage=endpoint.validation")
+		req.Contains(stdout, "test msg")
+	})
+
+	t.Run("stage omitted when empty", func(t *testing.T) {
+		req := require.New(t)
+		stdout, _ := captureCtxOutput(func() {
+			logger.VerboseCtx(context.Background(), "", "no stage msg")
+		})
+		req.NotContains(stdout, "stage=")
+		req.Contains(stdout, "no stage msg")
+	})
 }
 
 func TestMultithread(t *testing.T) {

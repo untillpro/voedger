@@ -20,6 +20,7 @@ const (
 	LogAttr_ReqID     = "reqid"
 	LogAttr_WSID      = "wsid"
 	LogAttr_Extension = "extension"
+	LogAttr_Stage     = "stage"
 )
 
 var (

@@ -6,6 +6,10 @@ The logging subsystem provides structured, context-aware logging with automatic 
 
 ## Concepts
 
+### Testing
+
+Tests that ensures that certain attributes and messages are logged in basic scenarios should be implemented
+
 ### Logging Attribute
 
 A key-value pair that provides additional context to log entries. Attributes are stored in `context.Context` and propagate with the context through the request processing pipeline using a linked-list chain structure.
@@ -324,7 +328,7 @@ A dedicated log context is created inside `NewN10nBroker` with `vapp="sys/voedge
 
 **Job execution:**
 
-- Logs (re)schedule: level `Verbose`, stage `job.reschedule`, msg `now=<timeNow>,next=<nextRunTime>`
+- Logs schedule: level `Verbose`, stage `job.schedule`, msg `now=<timeNow>,next=<nextRunTime>`
 - Logs wake-up: level `Verbose`, stage `job.wake-up`, msg `<timeNow>`
 - Logs successful invoke: level `Verbose`, stage `job.success`, msg (empty)
 

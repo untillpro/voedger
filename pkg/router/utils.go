@@ -161,7 +161,7 @@ func withLogAttribs(ctx context.Context, data validatedData, busRequest bus.Requ
 
 func logServeRequest(ctx context.Context) {
 	if logger.IsVerbose() {
-		logger.LogCtx(ctx, 1, logger.LogLevelVerbose, "request accepted")
+		logger.LogCtx(ctx, 1, logger.LogLevelVerbose, "", "request accepted")
 	}
 }
 

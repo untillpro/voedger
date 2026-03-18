@@ -317,7 +317,7 @@ func (cmdProc *cmdProc) recovery(ctx context.Context, cmd *cmdWorkpiece) (*appPa
 		// notest
 		return nil, err
 	}
-	logger.InfoCtx(cmd.cmdMes.RequestCtx(), "partition ", cmd.cmdMes.PartitionID(), " recovered: nextPLogOffset ", ap.nextPLogOffset, ", workspaces ", string(worskapcesJSON))
+	logger.InfoCtx(cmd.cmdMes.RequestCtx(), "", "partition ", cmd.cmdMes.PartitionID(), " recovered: nextPLogOffset ", ap.nextPLogOffset, ", workspaces ", string(worskapcesJSON))
 	return ap, nil
 }
 
@@ -458,7 +458,7 @@ func (cmdProc *cmdProc) authorizeRequest(ctx context.Context, cmd *cmdWorkpiece)
 		return coreutils.NewHTTPErrorf(http.StatusForbidden)
 	}
 	if !newACLOk && oldACLOk && logger.IsVerbose() {
-		logger.VerboseCtx(cmd.cmdMes.RequestCtx(), "newACL not ok, but oldACL ok. ", appdef.OperationKind_Execute, cmd.cmdQName, cmd.roles)
+		logger.VerboseCtx(cmd.cmdMes.RequestCtx(), "", "newACL not ok, but oldACL ok. ", appdef.OperationKind_Execute, cmd.cmdQName, cmd.roles)
 	}
 	return nil
 }
@@ -832,7 +832,7 @@ func (cmdProc *cmdProc) authorizeRequestCUDs(ctx context.Context, cmd *cmdWorkpi
 			return coreutils.NewHTTPError(http.StatusForbidden, parsedCUD.xPath.Errorf("operation forbidden"))
 		}
 		if !newACLOk && oldACLOk && logger.IsVerbose() {
-			logger.VerboseCtx(cmd.cmdMes.RequestCtx(), "newACL not ok, but oldACL ok. ", parsedCUD.opKind, parsedCUD.qName, cmd.roles)
+			logger.VerboseCtx(cmd.cmdMes.RequestCtx(), "", "newACL not ok, but oldACL ok. ", parsedCUD.opKind, parsedCUD.qName, cmd.roles)
 		}
 	}
 	return
@@ -865,7 +865,7 @@ func (cmdProc *cmdProc) notifyAsyncActualizers(ctx context.Context, cmd *cmdWork
 		WS:         istructs.WSID(cmd.cmdMes.PartitionID()),
 	}, cmd.rawEvent.PLogOffset())
 	if logger.IsVerbose() {
-		logger.VerboseCtx(cmd.cmdMes.RequestCtx(), "async actualizers are notified: offset ", cmd.rawEvent.PLogOffset(), ", pnumber ", cmd.cmdMes.PartitionID())
+		logger.VerboseCtx(cmd.cmdMes.RequestCtx(), "", "async actualizers are notified: offset ", cmd.rawEvent.PLogOffset(), ", pnumber ", cmd.cmdMes.PartitionID())
 	}
 	return nil
 }
@@ -894,7 +894,7 @@ func sendResponse(cmd *cmdWorkpiece, handlingError error) {
 		cmdResultBytes, err := json.Marshal(cmdResult)
 		if err != nil {
 			// notest
-			logger.ErrorCtx(cmd.cmdMes.RequestCtx(), "failed to marshal response: "+err.Error(), ", response: ", cmdResult)
+			logger.ErrorCtx(cmd.cmdMes.RequestCtx(), "", "failed to marshal response: "+err.Error(), ", response: ", cmdResult)
 			return
 		}
 		body.WriteString(`,"Result":`)

@@ -171,7 +171,7 @@ func ProvideServiceFactory(appParts appparts.IAppPartitions, tm timeu.ITime,
 							logSuccess(cmd)
 						}
 						if cmd.appPartitionRestartScheduled {
-							logger.WarningCtx(cmd.cmdMes.RequestCtx(), fmt.Sprintf("partition %d will be restarted due of an error on writing to Log: %s", cmd.cmdMes.PartitionID(), cmdHandlingErr))
+							logger.WarningCtx(cmd.cmdMes.RequestCtx(), "", fmt.Sprintf("partition %d will be restarted due of an error on writing to Log: %s", cmd.cmdMes.PartitionID(), cmdHandlingErr))
 							delete(cmdProc.appsPartitions, cmd.cmdMes.AppQName())
 						}
 					}()
@@ -190,7 +190,7 @@ func logHandlingError(cmd *cmdWorkpiece, err error) {
 		return
 	}
 	body := compactBody(cmd.cmdMes.Body())
-	logger.LogCtx(cmd.cmdMes.RequestCtx(), 1, logger.LogLevelError, err, ", body: ", body)
+	logger.LogCtx(cmd.cmdMes.RequestCtx(), 1, logger.LogLevelError, "", err, ", body: ", body)
 }
 
 func logSuccess(cmd *cmdWorkpiece) {
@@ -198,7 +198,7 @@ func logSuccess(cmd *cmdWorkpiece) {
 		return
 	}
 	body := compactBody(cmd.cmdMes.Body())
-	logger.LogCtx(cmd.cmdMes.RequestCtx(), 1, logger.LogLevelVerbose, "result: ", cmd.cmdResToLog, ", body: ", body)
+	logger.LogCtx(cmd.cmdMes.RequestCtx(), 1, logger.LogLevelVerbose, "", "result: ", cmd.cmdResToLog, ", body: ", body)
 }
 
 func compactBody(body []byte) string {

@@ -93,9 +93,9 @@ func (a *asyncActualizer) Prepare(vvmCtx context.Context) {
 func (a *asyncActualizer) logError(err error) {
 	var errCtx errWithCtx
 	if errors.As(err, &errCtx) {
-		logger.ErrorCtx(errCtx.ctx, errCtx.error)
+		logger.ErrorCtx(errCtx.ctx, "", errCtx.error)
 	} else {
-		logger.ErrorCtx(a.readCtx.vvmCtx, err)
+		logger.ErrorCtx(a.readCtx.vvmCtx, "", err)
 	}
 }
 
@@ -179,7 +179,7 @@ func (a *asyncActualizer) init(vvmCtx context.Context) (err error) {
 
 	err = a.readOffset(p.name)
 	if err != nil {
-		logger.ErrorCtx(vvmCtx, a.name, err)
+		logger.ErrorCtx(vvmCtx, "", a.name, err)
 		return err
 	}
 
@@ -246,12 +246,12 @@ func (a *asyncActualizer) keepReading() (err error) {
 	}
 	a.conf.Broker.WatchChannel(a.readCtx.vvmCtx, a.conf.channel, func(projection in10n.ProjectionKey, offset istructs.Offset) {
 		if logger.IsVerbose() {
-			logger.VerboseCtx(a.readCtx.vvmCtx, fmt.Sprintf("received n10n: offset %d, last handled: %d", offset, a.offset))
+			logger.VerboseCtx(a.readCtx.vvmCtx, "", fmt.Sprintf("received n10n: offset %d, last handled: %d", offset, a.offset))
 		}
 		if a.offset < offset {
 			err = a.readPlogToOffset(a.readCtx.vvmCtx, offset)
 			if err != nil {
-				logger.ErrorCtx(a.readCtx.vvmCtx, a.name, err)
+				logger.ErrorCtx(a.readCtx.vvmCtx, "", a.name, err)
 				a.readCtx.cancelWithError(err)
 			}
 		}
@@ -457,7 +457,7 @@ func (p *asyncProjector) DoAsync(ctx context.Context, work pipeline.IWorkpiece) 
 		}
 	}
 	if logger.IsVerbose() {
-		logger.VerboseCtx(logCtx, "success")
+		logger.VerboseCtx(logCtx, "", "success")
 	}
 
 	return nil, nil

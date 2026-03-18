@@ -120,7 +120,7 @@ func LogEventAndCUDs(logCtx context.Context, event istructs.IPLogEvent, pLogOffs
 	if len(eventMessageAdds) > 0 {
 		msg += ", " + eventMessageAdds
 	}
-	logger.LogCtx(enrichedCtx, skipStackFrames+1, logger.LogLevelVerbose, msg)
+	logger.LogCtx(enrichedCtx, skipStackFrames+1, logger.LogLevelVerbose, "", msg)
 	for cud := range event.CUDs {
 		shouldLog, extraMsg := true, ""
 		if perCUDLogCallback != nil {
@@ -146,7 +146,7 @@ func LogEventAndCUDs(logCtx context.Context, event istructs.IPLogEvent, pLogOffs
 		if len(extraMsg) > 0 {
 			msg += ", " + extraMsg
 		}
-		logger.LogCtx(cudCtx, skipStackFrames+4, logger.LogLevelVerbose, msg) // +4 because call stack goes from cudType.enumRecs() here
+		logger.LogCtx(cudCtx, skipStackFrames+4, logger.LogLevelVerbose, "", msg) // +4 because call stack goes from cudType.enumRecs() here
 	}
 	return enrichedCtx, nil
 }
