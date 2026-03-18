@@ -53,7 +53,7 @@
   - remove: `httpServ.name = "HTTPS server"` assignment (`name` field now set to `"sys._HTTPSServer"` via `getHTTPServer`)
   - update: call sites pass extension strings (`sys._HTTPServer`, etc.) as the `name` argument
 
-- [ ] Review
+- [x] Review
 
 ### Bootstrap
 
