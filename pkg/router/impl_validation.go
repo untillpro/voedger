@@ -7,6 +7,7 @@ package router
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 
@@ -32,15 +33,17 @@ func withValidateForBLOBs(numsAppsWorkspaces map[appdef.AppQName]istructs.NumApp
 
 func withValidate(numsAppsWorkspaces map[appdef.AppQName]istructs.NumAppWorkspaces, handler func(req *http.Request, rw http.ResponseWriter, data validatedData), validators ...validatorFunc) http.HandlerFunc {
 	return func(rw http.ResponseWriter, req *http.Request) {
-		data, ok := validate(req, rw, numsAppsWorkspaces, validators...)
-		if !ok {
+		data, err := validate(req, numsAppsWorkspaces, validators...)
+		if err != nil {
+			logger.Error(err.Error())
+			ReplyCommonError(rw, err.Error(), http.StatusBadRequest)
 			return
 		}
 		handler(req, rw, data)
 	}
 }
 
-func validateRequest(req *http.Request, rw http.ResponseWriter, numsAppsWorkspaces map[appdef.AppQName]istructs.NumAppWorkspaces) (validatedData, bool) {
+func validateRequest(req *http.Request, numsAppsWorkspaces map[appdef.AppQName]istructs.NumAppWorkspaces) (validatedData, error) {
 	vars := mux.Vars(req)
 	wsidStr := vars[URLPlaceholder_wsid]
 	var wsid istructs.WSID
@@ -48,16 +51,14 @@ func validateRequest(req *http.Request, rw http.ResponseWriter, numsAppsWorkspac
 	if len(wsidStr) > 0 {
 		wsid, err = coreutils.ClarifyJSONWSID(json.Number(wsidStr))
 		if err != nil {
-			ReplyCommonError(rw, err.Error(), http.StatusBadRequest)
-			return validatedData{}, false
+			return validatedData{}, fmt.Errorf("invalid wsid: %w", err)
 		}
 	}
 
 	appQNameStr := vars[URLPlaceholder_appOwner] + appdef.AppQNameQualifierChar + vars[URLPlaceholder_appName]
 	appQName, err := appdef.ParseAppQName(appQNameStr)
 	if err != nil {
-		ReplyCommonError(rw, err.Error(), http.StatusBadRequest)
-		return validatedData{}, false
+		return validatedData{}, fmt.Errorf("invalid app QName: %w", err)
 	}
 
 	if numAppWorkspaces, ok := numsAppsWorkspaces[appQName]; ok {
@@ -77,51 +78,49 @@ func validateRequest(req *http.Request, rw http.ResponseWriter, numsAppsWorkspac
 	for k, v := range req.Header {
 		res.header[k] = v[0]
 	}
-	return res, true
+	return res, nil
 }
 
-func validate(req *http.Request, rw http.ResponseWriter, numsAppsWorkspaces map[appdef.AppQName]istructs.NumAppWorkspaces, validators ...validatorFunc) (validatedData, bool) {
-	validatedData, ok := validateRequest(req, rw, numsAppsWorkspaces)
-	if !ok {
-		return validatedData, false
+func validate(req *http.Request, numsAppsWorkspaces map[appdef.AppQName]istructs.NumAppWorkspaces, validators ...validatorFunc) (validatedData, error) {
+	validatedData, err := validateRequest(req, numsAppsWorkspaces)
+	if err != nil {
+		return validatedData, err
 	}
 	for _, validator := range validators {
-		validatedData, ok = validator(validatedData, req, rw)
-		if !ok {
-			return validatedData, false
+		validatedData, err = validator(validatedData, req)
+		if err != nil {
+			return validatedData, err
 		}
 	}
-	return validatedData, true
+	return validatedData, nil
 }
 
-func readBody(validatedData validatedData, req *http.Request, rw http.ResponseWriter) (validatedData, bool) {
+func readBody(validatedData validatedData, req *http.Request) (validatedData, error) {
 	if req.Body == nil || req.Body == http.NoBody {
-		return validatedData, true
+		return validatedData, nil
 	}
 	var err error
 	validatedData.body, err = io.ReadAll(req.Body)
 	if err != nil {
 		// notest
-		logger.Error("failed to read body", err.Error())
-		return validatedData, false
+		return validatedData, fmt.Errorf("failed to read body: %w", err)
 	}
-	return validatedData, true
+	return validatedData, nil
 }
 
 // does not read body
-func cookiesTokenToHeaders(validatedData validatedData, req *http.Request, rw http.ResponseWriter) (validatedData, bool) {
+func cookiesTokenToHeaders(validatedData validatedData, req *http.Request) (validatedData, error) {
 	if _, ok := validatedData.header[httpu.Authorization]; !ok {
 		// no token among headers -> look among cookies
 		// no token among cookies as well -> just do nothing, 403 will happen on call helper commands further in BLOBs processor
 		cookieBearerToken, ok, err := GetCookieBearerAuth(req)
 		if err != nil {
-			WriteTextResponse(rw, err.Error(), http.StatusBadRequest)
-			return validatedData, false
+			return validatedData, err
 		}
 		if ok {
 			// authorization token in cookies -> q.sys.DownloadBLOBAuthnz requires it in headers
 			validatedData.header[httpu.Authorization] = cookieBearerToken
 		}
 	}
-	return validatedData, true
+	return validatedData, nil
 }

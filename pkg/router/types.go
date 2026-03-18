@@ -110,4 +110,4 @@ type validatedData struct {
 	body     []byte
 }
 
-type validatorFunc func(validateData validatedData, req *http.Request, rw http.ResponseWriter) (validatedData, bool)
+type validatorFunc func(validateData validatedData, req *http.Request) (validatedData, error)

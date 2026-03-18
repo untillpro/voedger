@@ -5,8 +5,6 @@
 package schedulers
 
 import (
-	"time"
-
 	"github.com/voedger/voedger/pkg/appdef"
 	"github.com/voedger/voedger/pkg/coreutils/federation"
 	"github.com/voedger/voedger/pkg/goutils/httpu"
@@ -19,10 +17,6 @@ import (
 	"github.com/voedger/voedger/pkg/processors"
 	"github.com/voedger/voedger/pkg/state"
 )
-
-type TimeAfterFunc func(d time.Duration) <-chan time.Time
-
-type LogErrorFunc func(args ...interface{})
 
 type BasicSchedulerConfig struct {
 	VvmName processors.VVMName
@@ -37,8 +31,6 @@ type BasicSchedulerConfig struct {
 	stateOpts  state.StateOpts
 	HTTPClient httpu.IHTTPClient
 
-	// Optional. Default value: `core-logger.Error`
-	LogError LogErrorFunc
 	//IntentsLimit top limit per event, optional, default value is 100
 	IntentsLimit int
 	EmailSender  state.IEmailSender

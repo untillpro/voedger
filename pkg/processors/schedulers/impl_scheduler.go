@@ -41,13 +41,9 @@ func (a *scheduler) Prepare() {
 		a.conf.IntentsLimit = defaultIntentsLimit
 	}
 
-	if a.conf.LogError == nil {
-		a.conf.LogError = logger.Error
-	}
-
 	a.retrierCfg.OnError = func(_ int, _ time.Duration, opErr error) (retry bool, abortErr error) {
 		a.finit() // even execute if a.init has failed
-		a.conf.LogError(a.name, opErr)
+		logger.Error(a.name, opErr)
 		if errors.Is(opErr, appparts.ErrNotFound) {
 			return true, nil
 		}
@@ -76,7 +72,7 @@ func (a *scheduler) runJob() {
 			borrowedPartition.Release()
 		}
 		if err != nil {
-			a.conf.LogError(a.name, err)
+			logger.Error(a.name, err)
 			if atomic.CompareAndSwapInt32(&a.projErrState, 0, 1) {
 				if a.jobInErrAddr != nil {
 					a.jobInErrAddr.Increase(1)
