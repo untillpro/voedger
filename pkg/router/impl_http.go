@@ -209,12 +209,14 @@ func RequestHandler_V1(requestSender bus.IRequestSender, numsAppsWorkspaces map[
 
 		logServeRequest(requestCtx)
 
+		sentAt := time.Now()
 		responseCh, responseMeta, responseErr, err := requestSender.SendRequest(requestCtx, busRequest)
 		if err != nil {
-			logger.ErrorCtx(requestCtx, "", "sending request to VVM on", busRequest.Resource, "is failed:", err, ". Body:\n", string(busRequest.Body))
+			logger.ErrorCtx(requestCtx, "routing.send2vvm.error", "sending request to VVM on", busRequest.Resource, "is failed:", err, ". Body:\n", string(busRequest.Body))
 			writeCommonError_V1(rw, err, http.StatusInternalServerError)
 			return
 		}
+		logLatency(requestCtx, sentAt)
 
 		initResponse(rw, responseMeta)
 		reply_v1(requestCtx, rw, responseCh, responseErr, responseMeta.ContentType, cancel, busRequest, responseMeta.Mode())

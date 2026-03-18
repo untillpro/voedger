@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/voedger/voedger/pkg/appdef"
@@ -492,12 +493,14 @@ func sendRequestAndReadResponse(req *http.Request, busRequest bus.Request, reqSe
 
 	logServeRequest(requestCtx)
 
+	sentAt := time.Now()
 	respCh, respMeta, respErr, err := reqSender.SendRequest(requestCtx, busRequest)
 	if err != nil {
-		logger.ErrorCtx(requestCtx, "", "sending request to VVM on", busRequest.QName, "is failed:", err, ". Body:\n", string(busRequest.Body))
+		logger.ErrorCtx(requestCtx, "routing.send2vvm.error", "sending request to VVM on", busRequest.QName, "is failed:", err, ". Body:\n", string(busRequest.Body))
 		ReplyCommonError(rw, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	logLatency(requestCtx, sentAt)
 
 	initResponse(rw, respMeta)
 	reply_v2(requestCtx, rw, respCh, respErr, cancel, respMeta)

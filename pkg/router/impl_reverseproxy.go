@@ -13,7 +13,6 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/valyala/bytebufferpool"
-	"github.com/voedger/voedger/pkg/goutils/logger"
 )
 
 func parseRoutes(routesURLs map[string]route, routes map[string]string, isRewrite bool) error {
@@ -30,7 +29,6 @@ func parseRoutes(routesURLs map[string]route, routes map[string]string, isRewrit
 			isRewrite,
 			"",
 		}
-		logger.Info("reverse proxy route registered: ", from, " -> ", to)
 	}
 	return nil
 }
@@ -54,7 +52,6 @@ func (s *routerService) getRedirectMatcher() (redirectMatcher mux.MatcherFunc, e
 		if defaultRouteURL, err = parseURL(s.routeDefault); err != nil {
 			return nil, err
 		}
-		logger.Info("default route registered: ", s.routeDefault)
 	}
 	return func(req *http.Request, rm *mux.RouteMatch) bool {
 		pathPrefix := bytebufferpool.Get()
@@ -113,8 +110,6 @@ func parseURL(urlStr string) (url *url.URL, err error) {
 }
 
 func redirect(req *http.Request, targetPath string, targetURL *url.URL) {
-	srcURL := req.URL.String()
-	srcHost := req.Host
 	req.URL.Path = targetPath
 	req.Host = targetURL.Host
 	req.URL.Scheme = targetURL.Scheme
@@ -124,8 +119,5 @@ func redirect(req *http.Request, targetPath string, targetURL *url.URL) {
 		req.URL.RawQuery = targetQuery + req.URL.RawQuery
 	} else {
 		req.URL.RawQuery = targetQuery + "&" + req.URL.RawQuery
-	}
-	if logger.IsVerbose() {
-		logger.Verbose(fmt.Sprintf("reverse proxy: incoming %s %s%s, redirecting to %s", req.Method, srcHost, srcURL, req.URL))
 	}
 }

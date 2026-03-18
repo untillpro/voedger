@@ -86,7 +86,7 @@ HTTP root context is derived from VVM context:
 - `extension` = server name: `sys._HTTPServer`, `sys._AdminHTTPServer`, `sys._HTTPSServer`, or `sys._ACMEServer`
   Used for logging server start/stop operations and for all incoming HTTP requests:
 
-- Router params validation failure: level `Error`, stage `endpoint.validation`, msg `<error message>`
+- Router params validation failure: level `Error`, stage `routing.validation`, msg `<error message>`
 - Start accepting connections success: level `Info`, stage `endpoint.listen.start`, msg `<addr>:<port>`
 - Start accepting connections failure: level `Error`, stage `endpoint.listen.error`, msg `<error message>`
 - Server stops accepting connections: level `Info`, stage `endpoint.shutdown`, msg (empty)
@@ -150,7 +150,7 @@ Uses `vapp="sys/voedger"`, `extension="sys._Leadership"`, `key` attribs.
   - `extension`: Resource name (API v1) or QName/API path (API v2)
   - `origin`: HTTP Origin header value
 - Request received: level `Verbose`, stage `routing.accepted`, msg (empty)
-- First response received from processor: level `Verbose`, stage `routing.latency1`, msg `<latency_ms>`
+- First response from bus (immediately after `SendRequest` returns): level `Verbose`, stage `routing.latency1`, msg `<latency_ms>`
 - Error sending request to VVM: level `Error`, stage `routing.send2vvm.error`, msg `<error message>`
 - Error sending response to client: level `Error`, stage `routing.response.error`, msg `<error message>`
 

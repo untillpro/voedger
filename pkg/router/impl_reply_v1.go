@@ -17,6 +17,7 @@ import (
 	"github.com/voedger/voedger/pkg/bus"
 	"github.com/voedger/voedger/pkg/coreutils"
 	"github.com/voedger/voedger/pkg/goutils/httpu"
+	"github.com/voedger/voedger/pkg/goutils/logger"
 )
 
 func reply_v1(requestCtx context.Context, w http.ResponseWriter, responseCh <-chan any, responseErr *error,
@@ -31,6 +32,7 @@ func reply_v1(requestCtx context.Context, w http.ResponseWriter, responseCh <-ch
 			return
 		}
 		if !sendSuccess {
+			logger.ErrorCtx(requestCtx, "routing.response.error", "failed to write response")
 			onSendFailed()
 			for range responseCh {
 			}
@@ -79,7 +81,6 @@ func reply_v1(requestCtx context.Context, w http.ResponseWriter, responseCh <-ch
 			// ctx.Done() must have the priority
 			return
 		}
-
 		if !isCmd && elemsCount == 0 {
 			if sendSuccess = writeResponse(w, `{"sections":[{"type":"","elements":[`); !sendSuccess {
 				return

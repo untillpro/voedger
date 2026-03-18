@@ -14,6 +14,7 @@ import (
 
 	"github.com/voedger/voedger/pkg/bus"
 	"github.com/voedger/voedger/pkg/coreutils"
+	"github.com/voedger/voedger/pkg/goutils/logger"
 )
 
 func reply_v2(requestCtx context.Context, w http.ResponseWriter, responseCh <-chan any, responseErr *error, onSendFailed func(), respMeta bus.ResponseMeta) {
@@ -27,6 +28,7 @@ func reply_v2(requestCtx context.Context, w http.ResponseWriter, responseCh <-ch
 			return
 		}
 		if !sendSuccess {
+			logger.ErrorCtx(requestCtx, "routing.response.error", "failed to write response")
 			onSendFailed()
 			for range responseCh {
 			}
@@ -47,7 +49,6 @@ func reply_v2(requestCtx context.Context, w http.ResponseWriter, responseCh <-ch
 			// ctx.Done() must have the priority
 			return
 		}
-
 		toSend := ""
 
 		if respMeta.Mode() == bus.RespondMode_StreamJSON {

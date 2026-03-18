@@ -35,7 +35,7 @@ func withValidate(numsAppsWorkspaces map[appdef.AppQName]istructs.NumAppWorkspac
 	return func(rw http.ResponseWriter, req *http.Request) {
 		data, err := validate(req, numsAppsWorkspaces, validators...)
 		if err != nil {
-			logger.Error(err.Error())
+			logger.ErrorCtx(req.Context(), "routing.validation", err)
 			ReplyCommonError(rw, err.Error(), http.StatusBadRequest)
 			return
 		}

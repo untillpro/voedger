@@ -93,29 +93,33 @@
 
 ### Router
 
-- [ ] update: [pkg/router/utils.go](../../../pkg/router/utils.go)
-  - update: `logServeRequest` to use stage `routing.accepted` and pass `stage` parameter
-  - update: `withLogAttribs` — verify `reqid` format is `{MMDDHHmm}-{atomicCounter}`
+- [x] update: [pkg/router/utils.go](../../../pkg/router/utils.go)
+  - update: `logServeRequest` to use stage `routing.accepted` with empty msg
+  - verified: `withLogAttribs` reqid format is `{MMDDHHmm}-{atomicCounter}`
 
-- [ ] update: [pkg/router/impl_http.go](../../../pkg/router/impl_http.go)
-  - update: `serveRequest` — on `SendRequest` error: stage `routing.send2vvm.error`
-  - update: `reply_v1` — on response write error: stage `routing.response.error`
-  - add: Log first response latency: level `Verbose`, stage `routing.latency1`, msg `<latency_ms>`
+- [x] update: [pkg/router/impl_http.go](../../../pkg/router/impl_http.go)
+  - update: `RequestHandler_V1` — on `SendRequest` error: stage `routing.send2vvm.error`
+  - add: call `logLatency(requestCtx, sentAt)` immediately after `SendRequest` returns successfully
 
-- [ ] update: [pkg/router/impl_apiv2.go](../../../pkg/router/impl_apiv2.go)
+- [x] update: [pkg/router/impl_reply_v1.go](../../../pkg/router/impl_reply_v1.go)
+  - add: on response write error: `logger.ErrorCtx` with stage `routing.response.error`
+
+- [x] update: [pkg/router/impl_apiv2.go](../../../pkg/router/impl_apiv2.go)
   - update: `sendRequestAndReadResponse` — on `SendRequest` error: stage `routing.send2vvm.error`
-  - update: Response writing errors: stage `routing.response.error`
-  - add: Log first response latency: level `Verbose`, stage `routing.latency1`, msg `<latency_ms>`
+  - add: call `logLatency(requestCtx, sentAt)` immediately after `SendRequest` returns successfully
 
-- [ ] update: [pkg/router/impl_validation.go](../../../pkg/router/impl_validation.go)
-  - update: `withValidate` — validation failure log: replace `logger.Error` with `logger.ErrorCtx`, stage `endpoint.validation`, msg `<error message>`
+- [x] update: [pkg/router/impl_reply_v2.go](../../../pkg/router/impl_reply_v2.go)
+  - add: on response write error: `logger.ErrorCtx` with stage `routing.response.error`
 
-- [ ] update: [pkg/router/impl_reverseproxy.go](../../../pkg/router/impl_reverseproxy.go)
-  - drop: `logger.Info("reverse proxy route registered: "...)` (L33)
-  - drop: `logger.Info("default route registered: "...)` (L57)
-  - drop: `logger.Verbose(fmt.Sprintf("reverse proxy: incoming %s..."...))` (L128-130)
+- [x] update: [pkg/router/impl_validation.go](../../../pkg/router/impl_validation.go)
+  - update: `withValidate` — validation failure log: replace `logger.Error` with `logger.ErrorCtx`, stage `routing.validation`
 
-- [ ] Review
+- [x] update: [pkg/router/impl_reverseproxy.go](../../../pkg/router/impl_reverseproxy.go)
+  - drop: `logger.Info("reverse proxy route registered: "...)`
+  - drop: `logger.Info("default route registered: "...)`
+  - drop: `logger.Verbose(fmt.Sprintf("reverse proxy: incoming %s..."...))` and unused variables `srcURL`, `srcHost`
+
+- [x] Review
 
 ### Command processor
 
