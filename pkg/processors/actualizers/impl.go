@@ -12,6 +12,7 @@ import (
 
 	"github.com/voedger/voedger/pkg/appdef"
 	"github.com/voedger/voedger/pkg/appparts"
+	"github.com/voedger/voedger/pkg/goutils/logger"
 	"github.com/voedger/voedger/pkg/istructs"
 	"github.com/voedger/voedger/pkg/pipeline"
 	"github.com/voedger/voedger/pkg/state"
@@ -22,7 +23,8 @@ type syncActualizerWorkpiece interface {
 	pipeline.IWorkpiece
 	Event() istructs.IPLogEvent
 	AppPartition() appparts.IAppPartition
-	Context() context.Context // is cmd.cmdMes.RequestCtx() from command processor
+	Context() context.Context                // is cmd.cmdMes.RequestCtx() from command processor
+	LogCtxForSyncProjector() context.Context // is cmd.cmdMes.RequestCtx() from cmd proc enriched with woffset, poffset, evqname attribs
 	PLogOffset() istructs.Offset
 }
 
@@ -85,11 +87,15 @@ func newSyncBranch(conf SyncActualizerConf, projector istructs.Projector, servic
 				if triggeredByQName == appdef.NullQName {
 					return nil
 				}
-				enrichedLogCtx, err := logEventAndCUDs(work.Context(), event, work.PLogOffset(), appDef, triggeredByQName)
-				if err != nil {
+				projLogCtx := logger.WithContextAttrs(work.LogCtxForSyncProjector(),
+					map[string]any{logger.LogAttr_Extension: projector.Name})
+				logger.VerboseCtx(projLogCtx, "sp.triggeredby", triggeredByQName)
+				if err := appPart.Invoke(projLogCtx, projector.Name, s, s); err != nil {
+					logger.ErrorCtx(projLogCtx, "sp.error", err)
 					return err
 				}
-				return appPart.Invoke(enrichedLogCtx, projector.Name, s, s)
+				logger.VerboseCtx(projLogCtx, "sp.success")
+				return nil
 			}),
 		pipeline.WireFunc("IntentsValidator", func(_ context.Context, _ pipeline.IWorkpiece) (err error) {
 			return s.ValidateIntents()

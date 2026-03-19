@@ -945,6 +945,94 @@ func TestLogEventAndCUDs(t *testing.T) {
 	})
 }
 
+func TestSyncProjectorLogging(t *testing.T) {
+	cudQName := appdef.NewQName(appdef.SysPackage, "CUD")
+	projQName := appdef.NewQName(appdef.SysPackage, "TestProj")
+
+	t.Run("sp.triggeredby and sp.success on success", func(t *testing.T) {
+		require := require.New(t)
+
+		var buf syncBuffer
+		logger.SetCtxWriters(&buf, &buf)
+		defer logger.SetCtxWriters(os.Stdout, os.Stderr)
+		defer logger.SetLogLevelWithRestore(logger.LogLevelVerbose)()
+
+		app := setUp(t, func(wsb appdef.IWorkspaceBuilder, cfg *istructsmem.AppConfigType) {
+			wsb.AddCRecord(testCRecord)
+			wsb.AddCDoc(testCDoc).AddContainer("TestCRecord", testCRecord, 0, 1)
+			wsb.AddWDoc(testWDoc)
+			wsb.AddCommand(cudQName)
+			wsb.AddRole(iauthnz.QNameRoleAuthenticatedUser)
+			wsb.AddRole(iauthnz.QNameRoleEveryone)
+			wsb.AddRole(iauthnz.QNameRoleSystem)
+			cfg.AddSyncProjectors(istructs.Projector{
+				Name: projQName,
+				Func: func(istructs.IPLogEvent, istructs.IState, istructs.IIntents) error { return nil },
+			})
+			wsb.AddProjector(projQName).SetSync(true).Events().Add(
+				[]appdef.OperationKind{appdef.OperationKind_Execute},
+				filter.QNames(cudQName))
+			cfg.Resources.Add(istructsmem.NewCommandFunction(cudQName, istructsmem.NullCommandExec))
+		})
+		defer tearDown(app)
+
+		buf.Reset()
+		sendCUD(t, 1, app)
+
+		out := buf.String()
+		require.Contains(out, "stage=sp.triggeredby")
+		require.Contains(out, "stage=sp.success")
+		require.Contains(out, fmt.Sprintf("extension=%s", projQName))
+	})
+
+	t.Run("sp.error on invoke failure", func(t *testing.T) {
+		require := require.New(t)
+
+		var buf syncBuffer
+		logger.SetCtxWriters(&buf, &buf)
+		defer logger.SetCtxWriters(os.Stdout, os.Stderr)
+		defer logger.SetLogLevelWithRestore(logger.LogLevelVerbose)()
+
+		projErr := errors.New("projector failed")
+		counter := 0
+		app := setUp(t, func(wsb appdef.IWorkspaceBuilder, cfg *istructsmem.AppConfigType) {
+			wsb.AddCRecord(testCRecord)
+			wsb.AddCDoc(testCDoc).AddContainer("TestCRecord", testCRecord, 0, 1)
+			wsb.AddWDoc(testWDoc)
+			wsb.AddCommand(cudQName)
+			wsb.AddRole(iauthnz.QNameRoleAuthenticatedUser)
+			wsb.AddRole(iauthnz.QNameRoleEveryone)
+			wsb.AddRole(iauthnz.QNameRoleSystem)
+			cfg.AddSyncProjectors(istructs.Projector{
+				Name: projQName,
+				Func: func(istructs.IPLogEvent, istructs.IState, istructs.IIntents) error {
+					counter++
+					if counter == 2 { // 1st is WorkspaceDescriptor stub
+						return projErr
+					}
+					return nil
+				},
+			})
+			wsb.AddProjector(projQName).SetSync(true).Events().Add(
+				[]appdef.OperationKind{appdef.OperationKind_Execute},
+				filter.QNames(cudQName))
+			cfg.Resources.Add(istructsmem.NewCommandFunction(cudQName, istructsmem.NullCommandExec))
+		})
+		defer tearDown(app)
+
+		buf.Reset()
+		sendCUD(t, 1, app, http.StatusInternalServerError)
+
+		out := buf.String()
+		require.Contains(out, "stage=sp.triggeredby")
+		require.Contains(out, "stage=sp.error")
+		require.Contains(out, "projector failed")
+		require.Contains(out, fmt.Sprintf("extension=%s", projQName))
+		require.Contains(out, "stage=cp.partition_recovery")
+		require.Contains(out, "partition will be restarted due of an error on writing to Log")
+	})
+}
+
 type syncBuffer struct {
 	mu  sync.Mutex
 	buf bytes.Buffer

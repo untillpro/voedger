@@ -128,7 +128,10 @@
   - update: `recovery` to create context with `vapp=sys.VApp_SysVoedger`, `extension="sys._Recovery"`, `partid` attrib
   - update: Recovery start: level `Info`, stage `cp.partition_recovery.start`, msg (empty)
   - update: Recovery complete: level `Info`, stage `cp.partition_recovery.complete`, msg `completed, nextPLogOffset and workspaces JSON`
-  - add: Recovery failure: level `Error`, stage `cp.partition_recovery.error`, msg `<error message>`
+  - add: ReadPLog failure: level `Error`, stage `cp.partition_recovery.readplog.error`, msg `<error message>`
+  - add: Last event re-apply: call `processors.LogEventAndCUDs()` with stage `cp.partition_recovery.reapply` to log which event is being re-applied; result saved to `cmd.logCtx`
+  - add: `LogEventAndCUDs` failure during re-apply: level `Error`, stage `cp.partition_recovery.logeventandcuds.error`, msg `<error message>`
+  - add: StoreOp failure: level `Error`, stage `cp.partition_recovery.storeop.error`, msg `<error message>`
   - keep: `logger.VerboseCtx(..."newACL not ok, but oldACL ok..."...)` (2 locations: `checkExecPermissions` and CUD ACL check)
   - drop: `logger.VerboseCtx(..."async actualizers are notified..."...)` in `notifyAsyncActualizers`
   - replace logging "failed to marhsal response" with `panic("failed to marhsal response: <err>")` in `sendResponse`
@@ -143,6 +146,7 @@
   - update: `TestBasicUsage` — capture logs via `syncBuffer`; assert `stage=cp.success` on success, `stage=cp.error` + error message on failure
   - update: `TestRecovery` — capture logs after restart; assert `stage=cp.partition_recovery.start`, `stage=cp.partition_recovery.complete`, `vapp=sys/voedger`, `extension=sys._Recovery`, `partid=`
   - update: `TestRecoveryOnSyncProjectorError` — capture logs after sync projector failure; assert `stage=cp.partition_recovery`, `vapp=sys/voedger`, `extension=sys._Recovery`, `"partition will be restarted"`
+  - add: `TestSyncProjectorLogging` — two subtests: success (assert `stage=sp.triggeredby`, `stage=sp.success`, `extension=<projQName>`) and error (assert `stage=sp.triggeredby`, `stage=sp.error`, error message, `extension=<projQName>`)
 
 - [x] Review
 
@@ -168,15 +172,23 @@
 
 ### Sync projectors
 
-- [ ] update: [pkg/processors/actualizers/impl.go](../../../pkg/processors/actualizers/impl.go)
-  - update: `newSyncBranch` — log trigger QName before `Invoke()`: level `Verbose`, stage `sp.triggeredby`, msg `<triggered by qname>`, `extension=<projector QName>`
-  - add: After success Invoke: level `Verbose`, stage `sp.success`, `extension=sp.<projector QName>`, msg (empty)
+- [x] update: [pkg/processors/actualizers/impl.go](../../../pkg/processors/actualizers/impl.go)
+  - update: `newSyncBranch` — no per-projector `logEventAndCUDs` call; use `work.LogCtxForSyncProjector()` enriched with `extension=<projector QName>` for all logs
+  - add: Right before `Invoke()`: level `Verbose`, stage `sp.triggeredby`, msg `<triggered by qname>`, `extension=<projector QName>`
+  - add: After successful `Invoke()`: level `Verbose`, stage `sp.success`, `extension=<projector QName>`, msg (empty)
+  - add: On `Invoke()` failure: level `Error`, stage `sp.error`, `extension=<projector QName>`, msg `<error message>`
 
-- [ ] update: [pkg/processors/command/provide.go](../../../pkg/processors/command/provide.go)
-  - add: After all sync projectors success: level `Verbose`, stage `sp.success`, msg (empty)
-  - add: On sync projector error: level `Error`, stage `sp.error`, msg `<error message>`
+- [x] update: [pkg/processors/command/provide.go](../../../pkg/processors/command/provide.go)
+  - add: After all sync projectors success: level `Verbose`, stage `sp.success`, msg (empty), using `cmd.logCtx` from `logEventAndCUDs`
+  - add: On sync projector error: level `Error`, stage `sp.error`, msg `<error message>`, using `cmd.logCtx`
 
-- [ ] Review
+- [x] update: [pkg/processors/command/types.go](../../../pkg/processors/command/types.go)
+  - add: `logCtx context.Context` field to `cmdWorkpiece` to carry enriched log context to sync projectors
+
+- [x] update: [pkg/processors/command/impl.go](../../../pkg/processors/command/impl.go)
+  - update: `logEventAndCUDs` — save `enrichedLogCtx` to `cmd.logCtx` instead of discarding it
+
+- [x] Review
 
 ### Async projectors
 

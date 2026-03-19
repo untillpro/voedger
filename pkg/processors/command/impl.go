@@ -83,9 +83,13 @@ func (c *cmdWorkpiece) AppPartitions() appparts.IAppPartitions {
 }
 
 // need for sync projectors which are using wsid.GetNextWSID()
-// need for sync projectors for logging
 func (c *cmdWorkpiece) Context() context.Context {
 	return c.cmdMes.RequestCtx()
+}
+
+// need for sync projectors for logging
+func (c *cmdWorkpiece) LogCtxForSyncProjector() context.Context {
+	return c.logCtx
 }
 
 // used in projectors.NewSyncActualizerFactoryFactory
@@ -270,10 +274,10 @@ func newRecoveryCtx(ctx context.Context, partID istructs.PartitionID) context.Co
 	})
 }
 
-func (cmdProc *cmdProc) recovery(ctx context.Context, cmd *cmdWorkpiece) (*appPartition, error) {
+func (cmdProc *cmdProc) recovery(ctx context.Context, cmd *cmdWorkpiece) (ap *appPartition, err error) {
 	recoveryCtx := newRecoveryCtx(cmd.cmdMes.RequestCtx(), cmd.cmdMes.PartitionID())
 	logger.InfoCtx(recoveryCtx, "cp.partition_recovery.start", "")
-	ap := &appPartition{
+	ap = &appPartition{
 		workspaces:     map[istructs.WSID]*workspace{},
 		nextPLogOffset: istructs.FirstOffset,
 	}
@@ -302,24 +306,32 @@ func (cmdProc *cmdProc) recovery(ctx context.Context, cmd *cmdWorkpiece) (*appPa
 	}
 
 	if err := cmd.appStructs.Events().ReadPLog(ctx, cmd.cmdMes.PartitionID(), istructs.FirstOffset, istructs.ReadToTheEnd, cb); err != nil {
-		logger.ErrorCtx(recoveryCtx, "cp.partition_recovery.error", err)
+		logger.ErrorCtx(recoveryCtx, "cp.partition_recovery.readplog.error", err)
 		return nil, err
 	}
 
 	if lastPLogEvent != nil {
 		// re-apply the last event
+		cmd.logCtx, err = processors.LogEventAndCUDs(recoveryCtx, lastPLogEvent, lastPLogOffset, cmd.appStructs.AppDef(), 0,
+			"cp.partition_recovery.reapply", nil, "")
+		if err != nil {
+			logger.ErrorCtx(recoveryCtx, "cp.partition_recovery.logeventandcuds.error", err)
+			return nil, err
+		}
 		cmd.pLogEvent = lastPLogEvent
 		cmd.workspace = ap.getWorkspace(lastPLogEvent.Workspace())
 		cmd.workspace.NextWLogOffset-- // cmdProc.storeOp will bump it
 		cmd.reapplier = cmd.appStructs.GetEventReapplier(cmd.pLogEvent)
 		cmd.pLogOffset = lastPLogOffset // need to get PLogOffset in sync projectors on logging
 		if err := cmdProc.storeOp.DoSync(ctx, cmd); err != nil {
+			logger.ErrorCtx(recoveryCtx, "cp.partition_recovery.storeop.error", err)
 			return nil, err
 		}
-		cmd.pLogEvent = nil
-		cmd.workspace = nil
-		cmd.reapplier = nil
 		cmd.pLogOffset = istructs.NullOffset
+		cmd.reapplier = nil
+		cmd.workspace = nil
+		cmd.pLogEvent = nil
+		cmd.logCtx = nil
 		lastPLogEvent.Release() // TODO: eliminate if there will be a better solution, see https://github.com/voedger/voedger/issues/1348
 	}
 
@@ -377,8 +389,7 @@ func logEventAndCUDs(_ context.Context, cmd *cmdWorkpiece) (err error) {
 		"",
 	)
 
-	// will not use the ctx enriched by woffset, poffset, evqname for now
-	_ = enrichedLogCtx
+	cmd.logCtx = enrichedLogCtx
 	return err
 }
 

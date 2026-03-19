@@ -93,6 +93,7 @@ type cmdWorkpiece struct {
 	commandCtxStorage            istructs.IStateValue
 	cmdResToLog                  string
 	pLogOffset                   istructs.Offset // need for logging
+	logCtx                       context.Context // enriched log ctx from logEventAndCUDs (woffset, poffset, evqname), used by sync projectors
 }
 
 type implIDGeneratorReporter struct {

@@ -185,7 +185,10 @@ The context with attributes is received from Router
 - `partid` attrib: partition ID
 - Partition recovery start: level `Info`, stage `cp.partition_recovery.start`, msg (empty)
 - Partition recovery complete: level `Info`, stage `cp.partition_recovery.complete`, msg `completed`, nextPLogOffset and workspaces JSON
-- Partition recovery failure: level `Error`, stage `cp.partition_recovery.error`, msg `<error message>`
+- ReadPLog failure: level `Error`, stage `cp.partition_recovery.readplog.error`, msg `<error message>`
+- Last event re-apply: `processors.LogEventAndCUDs()` called with stage `cp.partition_recovery.reapply` to log which event is being re-applied (with `woffset`, `poffset`, `evqname` attribs); the enriched context is stored in `cmdWorkpiece.logCtx` and used by sync projectors during re-apply
+- `LogEventAndCUDs` failure during re-apply: level `Error`, stage `cp.partition_recovery.logeventandcuds.error`, msg `<error message>`
+- StoreOp failure (re-apply last event): level `Error`, stage `cp.partition_recovery.storeop.error`, msg `<error message>`
 
 ---
 
@@ -202,13 +205,27 @@ The context with attributes is received from Router
 
 Launched by command processor between `ApplyRecords` and `PutWLog` stages
 
-- Use the context from `processors.LogEventAndCUDs()` with attribs `woffset`, `poffset`, `evqname`
-- Command processor logs:
-  - After all sync projectors success: level `Verbose`, stage `sp.success`, msg (empty)
-  - Logs the projector error: level `Error`, stage `sp.error`, msg `<error message>`
-- Each triggered sync projector:
-  - Logs the trigger QName right before `IAppParts.Invoke()`: level `Verbose`, stage `sp.triggeredby`, msg `<triggered by qname>`, extension `<projector QName>`
-  - After success Invoke: level `Verbose`, stage `sp.success`, `extension`=`sp.<projector QName>`, msg (empty)
+**Context propagation:**
+
+The enriched context returned by `processors.LogEventAndCUDs()` (with attribs `woffset`, `poffset`, `evqname`) is stored in the `cmdWorkpiece.logCtx` field and used for all sync projector logging:
+
+- `logEventAndCUDs` (called after PLog write) saves the enriched context to `cmdWorkpiece.logCtx`
+- During partition recovery, `LogEventAndCUDs()` is called for the re-applied event and its result is also stored in `cmdWorkpiece.logCtx`
+- Command processor sync projector handler reads `cmd.logCtx` for `sp.success` and `sp.error` logs
+- Each projector branch receives `cmd.logCtx` (via `syncActualizerWorkpiece.LogCtxForSyncProjector()`) for its per-projector logs
+
+**Command processor logs** (using `cmd.logCtx`):
+
+- After all sync projectors succeed: level `Verbose`, stage `sp.success`, msg (empty)
+- Sync projector error: level `Error`, stage `sp.error`, msg `<error message>`
+
+**Each triggered sync projector** (using `LogCtxForSyncProjector()`):
+
+The event is already logged by the command processor (`cp.plog_saved`), so there is no separate `logEventAndCUDs` call per projector. The projector uses `LogCtxForSyncProjector()` directly to obtain the enriched context and extends it with `extension`=`<projector QName>`:
+
+- Right before `IAppParts.Invoke()`: level `Verbose`, stage `sp.triggeredby`, msg `<triggered by qname>`, `extension`=`<projector QName>`
+- After successful `Invoke()`: level `Verbose`, stage `sp.success`, `extension`=`<projector QName>`, msg (empty)
+- On `Invoke()` failure: level `Error`, stage `sp.error`, `extension`=`<projector QName>`, msg `<error message>`
 
 ### Async Projectors
 
