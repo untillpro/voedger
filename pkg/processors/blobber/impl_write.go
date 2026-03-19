@@ -73,6 +73,9 @@ func provideWriteBLOB(blobStorage iblobstorage.IBLOBStorage, wLimiterFactory WLi
 		if errors.Is(err, iblobstorage.ErrBLOBSizeQuotaExceeded) {
 			return coreutils.NewHTTPError(http.StatusRequestEntityTooLarge, err)
 		}
+		if err == nil {
+			logger.VerboseCtx(bw.logCtx, "bp.write.success")
+		}
 		return err
 	}
 }
@@ -93,6 +96,9 @@ func setBLOBStatusCompleted(ctx context.Context, bw *blobWorkpiece) (err error) 
 		Host:     httpu.LocalhostIP.String(),
 	}
 	_, _, err = bus.GetCommandResponse(bw.blobMessageWrite.requestCtx, bw.blobMessageWrite.requestSender, req)
+	if err == nil {
+		logger.VerboseCtx(bw.logCtx, "bp.setcompleted.success")
+	}
 	return err
 }
 
@@ -112,16 +118,30 @@ func registerBLOB(ctx context.Context, bw *blobWorkpiece) (err error) {
 	if sysErr != nil {
 		return fmt.Errorf("%s failed: %w", bw.registerFuncName.String(), sysErr)
 	}
+	var blobIDStr string
 	if bw.isPersistent() {
 		bw.newBLOBID = blobHelperResp.NewIDs["1"]
+		blobIDStr = strconvu.UintToString(bw.newBLOBID)
 	} else {
 		bw.newSUUID = iblobstorage.NewSUUID()
+		blobIDStr = string(bw.newSUUID)
 	}
+	bw.logCtx = logger.WithContextAttrs(bw.logCtx, map[string]any{
+		attrBlobID: blobIDStr,
+	})
+	logger.VerboseCtx(bw.logCtx, "bp.register.success")
 	return nil
 }
 
 func getBLOBMessageWrite(_ context.Context, bw *blobWorkpiece) error {
 	bw.blobMessageWrite = bw.blobMessage.(*implIBLOBMessage_Write)
+	bw.logCtx = bw.blobMessageWrite.requestCtx
+	if bw.blobMessageWrite.ownerRecord != appdef.NullQName {
+		bw.logCtx = logger.WithContextAttrs(bw.logCtx, map[string]any{
+			attrOwnerQName: bw.blobMessageWrite.ownerRecord.String(),
+			attrOwnerField: bw.blobMessageWrite.ownerRecordField,
+		})
+	}
 	return nil
 }
 
@@ -199,6 +219,7 @@ func validateQueryParams(_ context.Context, bw *blobWorkpiece) error {
 		}
 		bw.descr.Name = bw.blobName[0]
 		bw.descr.ContentType = bw.blobContentType[0]
+		logger.VerboseCtx(bw.logCtx, "bp.meta", "name=", bw.descr.Name, ",contenttype=", bw.descr.ContentType)
 		return nil
 	}
 
@@ -215,6 +236,7 @@ func validateQueryParams(_ context.Context, bw *blobWorkpiece) error {
 		return fmt.Errorf("boundary of %s is not specified", httpu.ContentType_MultipartFormData)
 	}
 
+	logger.VerboseCtx(bw.logCtx, "bp.meta", "name=", bw.descr.Name, ",contenttype=", bw.descr.ContentType)
 	return nil
 }
 
@@ -241,29 +263,15 @@ func replySuccess_V2(bw *blobWorkpiece) (err error) {
 func (b *sendWriteResult) DoSync(_ context.Context, work pipeline.IWorkpiece) (err error) {
 	bw := work.(*blobWorkpiece)
 	if bw.resultErr == nil {
-		if logger.IsVerbose() {
-			blobIDStr := fmt.Sprint(bw.newBLOBID)
-			if len(blobIDStr) == 0 {
-				blobIDStr = string(bw.newSUUID)
-			}
-			logger.Verbose("blob write success:", bw.blobName, ":", blobIDStr)
-		}
 		if bw.blobMessageWrite.isAPIv2 {
 			err = replySuccess_V2(bw)
 		} else {
 			err = replySuccess_V1(bw)
 		}
-		if err != nil {
-			// notest
-			logger.Error("failed to send successfult BLOB write repply:", err)
-		}
 		return err
 	}
 	var sysError coreutils.SysError
 	errors.As(bw.resultErr, &sysError)
-	if logger.IsVerbose() {
-		logger.Verbose("blob write error:", sysError.HTTPStatus, ":", sysError.Message)
-	}
 	bw.blobMessageWrite.errorResponder(sysError)
 	return nil
 }
@@ -271,6 +279,12 @@ func (b *sendWriteResult) DoSync(_ context.Context, work pipeline.IWorkpiece) (e
 func (b *sendWriteResult) OnErr(err error, work interface{}, _ pipeline.IWorkpieceContext) (newErr error) {
 	bw := work.(*blobWorkpiece)
 	bw.resultErr = coreutils.WrapSysError(err, http.StatusInternalServerError)
+	var sysError coreutils.SysError
+	if errors.As(bw.resultErr, &sysError) && sysError.HTTPStatus == http.StatusBadRequest {
+		logger.ErrorCtx(bw.logCtx, "bp.error", err, ", query=", bw.blobMessageWrite.urlQueryValues, ", headers=", bw.blobMessageWrite.header)
+	} else {
+		logger.ErrorCtx(bw.logCtx, "bp.error", err)
+	}
 	return nil
 }
 

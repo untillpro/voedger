@@ -14,6 +14,10 @@ const (
 	temporaryBLOBIDLenTreshold = 40 // greater -> temporary, persistent oherwise
 	branchReadBLOB             = "readBLOB"
 	branchWriteBLOB            = "writeBLOB"
+	attrOwnerQName             = "ownerqname"
+	attrOwnerField             = "ownerfield"
+	attrOwnerID                = "ownerid"
+	attrBlobID                 = "blobid"
 )
 
 var (

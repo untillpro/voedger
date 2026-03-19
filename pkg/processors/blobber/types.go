@@ -24,6 +24,7 @@ type blobWorkpiece struct {
 	blobMessage      any
 	blobMessageWrite *implIBLOBMessage_Write
 	blobMessageRead  *implIBLOBMessage_Read
+	logCtx           context.Context
 	duration         iblobstorage.DurationType
 	blobName         []string
 	blobContentType  []string

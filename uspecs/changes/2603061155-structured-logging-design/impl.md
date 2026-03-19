@@ -211,27 +211,40 @@
 
 ### Blob processor
 
-- [ ] update: [pkg/processors/blobber/impl_write.go](../../../pkg/processors/blobber/impl_write.go)
-  - add: After `validateQueryParams` success: level `Verbose`, stage `bp.meta`, msg `name=<name>,contenttype=<type>`, using `VerboseCtx`
-  - add: After `registerBLOB`: level `Verbose`, stage `bp.register.success`, msg (empty)
-  - add: After `blobStorage.WriteBLOB()` — add `blobid` attrib, then: level `Verbose`, stage `bp.write.success`, msg (empty)
-  - add: After `setBLOBStatusCompleted`: level `Verbose`, stage `bp.setcompleted.success`, msg (empty)
-  - update: `sendWriteResult.OnErr` — level `Error`, stage `bp.error`, msg `<error message>` with query and headers for 400 errors
+- [x] update: [pkg/processors/blobber/impl_write.go](../../../pkg/processors/blobber/impl_write.go)
+  - add: `logCtx` field to `blobWorkpiece` in `types.go` to carry enriched logging context through the pipeline
+  - add: `getBLOBMessageWrite` initializes `bw.logCtx` from `requestCtx`; if `ownerRecord != NullQName` enriches with `ownerqname` and `ownerfield` attribs
+  - add: After `validateQueryParams` success: level `Verbose`, stage `bp.meta`, msg `name=<name>,contenttype=<type>`, using `bw.logCtx`
+  - add: After `registerBLOB`: enrich `bw.logCtx` with `blobid` attrib, then level `Verbose`, stage `bp.register.success`
+  - add: After `blobStorage.WriteBLOB()`: level `Verbose`, stage `bp.write.success`, using `bw.logCtx` (already has `ownerqname`, `ownerfield`, `blobid`)
+  - add: After `setBLOBStatusCompleted`: level `Verbose`, stage `bp.setcompleted.success`, using `bw.logCtx`
+  - update: `sendWriteResult.OnErr` — level `Error`, stage `bp.error`, using `bw.logCtx`, with query and headers for 400 errors
   - drop: `logger.Verbose("blob write success:...")` and `logger.Verbose("blob write error:...")` calls
   - drop: `logger.Error("failed to send successfult BLOB write repply:...")`
   - add: Local constants for `ownerqname`, `ownerfield`, `ownerid`, `blobid` attribute keys
 
-- [ ] update: [pkg/processors/blobber/impl_read.go](../../../pkg/processors/blobber/impl_read.go)
-  - add: Read success: level `Verbose`, stage `bp.success`, msg (empty)
-  - update: `catchReadError.DoSync` — level `Error`, stage `bp.error`, msg `<error message>` with query and headers for 400 errors
+- [x] update: [pkg/processors/blobber/impl_read.go](../../../pkg/processors/blobber/impl_read.go)
+  - add: `getBLOBMessageRead` initializes `bw.logCtx` from `requestCtx`; if `ownerRecord != NullQName` enriches with `ownerqname`, `ownerfield`, `ownerid` attribs
+  - add: `getBLOBIDFromOwner` enriches `bw.logCtx` with `blobid` as soon as the ID is determined — for non-APIv2/temp (early return): from existing `existingBLOBIDOrSUUID`; for APIv2 persistent: from the resolved `blobID` before returning
+  - add: Read success: level `Verbose`, stage `bp.success`, msg (empty), using `bw.logCtx`
+  - update: `catchReadError.DoSync` — level `Error`, stage `bp.error`, msg `<error message>` with query and headers for 400 errors, using `bw.logCtx`
   - drop: `logger.Verbose("blob read error:...")` call
   - drop: `logger.Error(fmt.Sprintf("failed to read BLOB:..."...))` in `readBLOB`
-  - add: Add `blobid` attrib to context at start of processing
 
-- [ ] update: [pkg/processors/blobber/impl_requesthandler.go](../../../pkg/processors/blobber/impl_requesthandler.go)
-  - add: Set `ownerqname`, `ownerfield`, `ownerid` attribs in context (if applicable)
+- [x] add tests: [pkg/processors/blobber/impl_write_test.go](../../../pkg/processors/blobber/impl_write_test.go)
+  - subtest `bp.meta on write success` — on successful write, assert `stage=bp.meta` and msg contains `name=` and `contenttype=`
+  - subtest `bp.register.success on write success` — assert `stage=bp.register.success` and `blobid=`
+  - subtest `bp.write.success on write success` — assert `stage=bp.write.success` and `blobid=`
+  - subtest `bp.setcompleted.success on write success` — assert `stage=bp.setcompleted.success` and `blobid=`
+  - subtest `bp.error on write error` — assert `stage=bp.error` and `<error message>`
+  - note: for owner-based writes also assert `ownerqname=`, `ownerfield=` on all stages
 
-- [ ] Review
+- [x] add tests: [pkg/processors/blobber/impl_read_test.go](../../../pkg/processors/blobber/impl_read_test.go)
+  - subtest `bp.success on read success` — on successful read, assert `stage=bp.success` and `blobid=`
+  - subtest `bp.error on read error` — assert `stage=bp.error` and `<error message>` and `blobid=`
+  - note: for owner-based reads also assert `ownerqname=`, `ownerfield=`, `ownerid=` on all stages
+
+- [x] Review
 
 ### N10N processor
 
