@@ -192,16 +192,22 @@
 
 ### Async projectors
 
-- [ ] update: [pkg/processors/actualizers/async.go](../../../pkg/processors/actualizers/async.go)
-  - update: `DoAsync` — `logEventAndCUDs` call to pass stage `ap`; `perCUDCallback` returns correct `shouldLog` based on trigger type; `eventMessageAdds` is `triggeredby=<QName>`
-  - update: `asyncErrorHandler.OnError` — log using event context: level `Error`, stage `ap.error`, msg `<error message>`
-  - update: `logError` — use stage `ap.error` in `ErrorCtx` calls
-  - drop: `logger.ErrorCtx(..."readOffset..."...)` in `DoAsync` init
+- [x] update: [pkg/processors/actualizers/async.go](../../../pkg/processors/actualizers/async.go)
+  - update: `DoAsync` — enriches `w.logCtx` with `wsid`; calls `logEventAndCUDs` with stage `"ap"` storing result in `w.logCtx`
+  - add: After successful `Invoke()`: level `Verbose`, stage `ap.success`, msg (empty), using `w.logCtx`
+  - drop: `asyncErrorHandler.OnError` logging (error logging moved to `retrierCfg.OnError`)
+  - drop: `logger.ErrorCtx(..."readOffset..."...)` in init
   - drop: `logger.VerboseCtx(..."notified..."...)` in notification handler
   - drop: `logger.ErrorCtx(..."readPlogToOffset..."...)` in plog read error
-  - drop: `logger.VerboseCtx(..."success..."...)` existing success log (replaced by TD-defined `ap.success`)
+  - drop: `logger.ErrorCtx` in `handleEvent` (errors propagate to retrier)
+  - update: `readPlogByBatches`, `readPlogToTheEnd`, `readPlogToOffset`, `keepReading`, `handleEvent` — pass context through to store in workpiece
 
-- [ ] Review
+- [x] update: [pkg/processors/actualizers/async_test.go](../../../pkg/processors/actualizers/async_test.go)
+  - update: `Test_AsynchronousActualizer_Logs/execute projector` — assert `stage=ap` and `stage=ap.success`
+  - update: `Test_AsynchronousActualizer_Logs/record projector` — assert `stage=ap` and `stage=ap.success`
+  - update: `Test_AsynchronousActualizer_ErrorAndRestore` — assert `stage=ap.error`
+
+- [x] Review
 
 ### Blob processor
 

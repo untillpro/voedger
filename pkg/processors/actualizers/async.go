@@ -89,7 +89,7 @@ func (a *asyncActualizer) Prepare(vvmCtx context.Context) {
 		var errPipeline pipeline.IErrorPipeline
 		if errors.As(opErr, &errPipeline) {
 			if wp, ok := errPipeline.GetWork().(*workpiece); ok && wp != nil {
-				logger.ErrorCtx(wp.logCtx, opErr)
+				logger.ErrorCtx(wp.logCtx, "ap.error", opErr)
 				return true, nil
 			}
 		}
@@ -452,7 +452,7 @@ func (p *asyncProjector) DoAsync(ctx context.Context, work pipeline.IWorkpiece) 
 		}
 	}
 	if logger.IsVerbose() {
-		logger.VerboseCtx(w.logCtx, "success")
+		logger.VerboseCtx(w.logCtx, "ap.success")
 	}
 
 	return nil, nil
@@ -466,7 +466,7 @@ func logEventAndCUDs(logCtx context.Context, event istructs.IPLogEvent,
 	triggeredByKind := appDef.Type(triggeredByQName).Kind()
 	triggeredByFunc := appdef.TypeKind_Functions.Contains(triggeredByKind)
 	triggeredByODoc := triggeredByKind == appdef.TypeKind_ODoc || triggeredByKind == appdef.TypeKind_ORecord
-	return processors.LogEventAndCUDs(logCtx, event, pLogOffset, appDef, 2, "",
+	return processors.LogEventAndCUDs(logCtx, event, pLogOffset, appDef, 2, "ap",
 		func(cud istructs.ICUDRow) (bool, string, error) {
 			return triggeredByFunc || triggeredByODoc || cud.QName() == triggeredByQName, "", nil
 		},

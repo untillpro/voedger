@@ -243,13 +243,15 @@ Stage is `ap`
   - `eventMessageAdds`: `triggeredby=<QName>`
 - Constructs event context - merge the context got from `processors.LogEventAndCUDs` and the ctx with `vapp` and `extension` attribs
 - Stores the event context in the pipeline workpiece to use it on error logging
+- Logs success: level `Verbose`, stage `ap.success`, msg (empty)
 
 **Error handling:**
 
-Done in `asyncErrorHandler.OnError()` handler
+Done in `retryercfg.OnError()` handler
 
-- Uses the event context
 - Logs the error: level `Error`, stage `ap.error`, msg `<error message>`
+  - the error is pipeline.IPipelineErr -> the context is taken from the workpiece (the one created in `DoAsync` with wsid)
+  - otherwise -> the context is `readCtx.ctx`
 
 ### Blob Processor
 

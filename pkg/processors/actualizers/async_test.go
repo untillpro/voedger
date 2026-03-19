@@ -384,7 +384,8 @@ func Test_AsynchronousActualizer_Logs(t *testing.T) {
 		require.Equal(2, strings.Count(out, "op=create"))
 		require.Equal(2, strings.Count(out, "newfields="))
 		require.NotContains(out, "oldfields=")
-		require.Contains(out, "success")
+		require.Contains(out, "stage=ap ")
+		require.Contains(out, "stage=ap.success")
 	})
 
 	t.Run("record projector logs only triggering cuds", func(t *testing.T) {
@@ -463,7 +464,8 @@ func Test_AsynchronousActualizer_Logs(t *testing.T) {
 		require.Equal(1, strings.Count(out, "newfields="))
 		require.NotContains(out, "oldfields=")
 		require.Contains(out, "args={}")
-		require.Contains(out, "success")
+		require.Contains(out, "stage=ap ")
+		require.Contains(out, "stage=ap.success")
 	})
 }
 
@@ -557,6 +559,7 @@ func Test_AsynchronousActualizer_ErrorAndRestore(t *testing.T) {
 	require.Contains(buf.String(), fmt.Sprintf("extension=%s", name))
 	require.Contains(buf.String(), "wsid=1002")
 	require.Contains(buf.String(), `msg="test error"`)
+	require.Contains(buf.String(), "stage=ap.error")
 
 	// wait until the istructs.Projector version is updated with the 1st record
 	for getActualizerOffset(require, appStructs, partitionNr, name) < istructs.Offset(1) {
