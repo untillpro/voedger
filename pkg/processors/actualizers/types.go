@@ -83,8 +83,3 @@ func ProjectorEvent(prj appdef.IProjector, event istructs.IPLogEvent) (triggered
 	}
 	return appdef.NullQName
 }
-
-type errWithCtx struct {
-	error
-	ctx context.Context
-}
