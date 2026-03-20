@@ -116,29 +116,29 @@ var test = testDataType{
 	fantaNumber:     12,
 }
 
-type testCmdWorkpeace struct {
+type testCmdWorkpiece struct {
 	appPart appparts.IAppPartition
 	event   istructs.IPLogEvent
 }
 
-func (w testCmdWorkpeace) AppPartition() appparts.IAppPartition { return w.appPart }
-func (w testCmdWorkpeace) Event() istructs.IPLogEvent           { return w.event }
+func (w testCmdWorkpiece) AppPartition() appparts.IAppPartition { return w.appPart }
+func (w testCmdWorkpiece) Event() istructs.IPLogEvent           { return w.event }
 
-func (w *testCmdWorkpeace) Borrow(ctx context.Context, appParts appparts.IAppPartitions) (err error) {
+func (w *testCmdWorkpiece) Borrow(ctx context.Context, appParts appparts.IAppPartitions) (err error) {
 	w.appPart, err = appParts.WaitForBorrow(ctx, test.appQName, test.partition, appparts.ProcessorKind_Command)
 	return err
 }
 
-func (w *testCmdWorkpeace) Command(e any) error {
+func (w *testCmdWorkpiece) Command(e any) error {
 	w.event = e.(istructs.IPLogEvent)
 	return nil
 }
 
-func (w *testCmdWorkpeace) Actualizers(ctx context.Context) error {
+func (w *testCmdWorkpiece) Actualizers(ctx context.Context) error {
 	return w.appPart.DoSyncActualizer(ctx, w)
 }
 
-func (w *testCmdWorkpeace) Release() {
+func (w *testCmdWorkpiece) Release() {
 	p := w.appPart
 	w.appPart = nil
 	if p != nil {
@@ -146,21 +146,22 @@ func (w *testCmdWorkpeace) Release() {
 	}
 }
 
-func (w *testCmdWorkpeace) Context() context.Context { return context.Background() }
-func (w *testCmdWorkpeace) PLogOffset() istructs.Offset { return 0 }
+func (w *testCmdWorkpiece) Context() context.Context { return context.Background() }
+func (w *testCmdWorkpiece) PLogOffset() istructs.Offset { return 0 }
+func (w *testCmdWorkpiece) LogCtxForSyncProjector() context.Context { return context.Background() }
 
 type testCmdProc struct {
 	pipeline.ISyncPipeline
 	appParts  appparts.IAppPartitions
 	ctx       context.Context
-	workpeace testCmdWorkpeace
+	workpeace testCmdWorkpiece
 }
 
 func testProcessor(appParts appparts.IAppPartitions) *testCmdProc {
 	proc := &testCmdProc{
 		appParts:  appParts,
 		ctx:       context.Background(),
-		workpeace: testCmdWorkpeace{},
+		workpeace: testCmdWorkpiece{},
 	}
 	proc.ISyncPipeline = pipeline.NewSyncPipeline(proc.ctx, "partition processor",
 		pipeline.WireSyncOperator("Borrow", pipeline.NewSyncOp(
