@@ -21,3 +21,15 @@ func (pk ProjectionKey) ToJSON() string {
 	buf.WriteString("}")
 	return buf.String()
 }
+
+func ProjectionKeysToJSON(keys []ProjectionKey) string {
+	buf := bytes.NewBufferString("[")
+	for i, k := range keys {
+		if i > 0 {
+			buf.WriteString(",")
+		}
+		buf.WriteString(k.ToJSON())
+	}
+	buf.WriteString("]")
+	return buf.String()
+}

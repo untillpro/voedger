@@ -190,6 +190,8 @@ func apiPathToExtension(apiPath processors.APIPath) string {
 		return "sys._Auth_Refresh"
 	case processors.APIPath_Users:
 		return "sys._Users"
+	case processors.APIPath_N10N_SubscribeAndWatch:
+		return "sys._N10N_SubscribeAndWatch"
 	}
 	return strconv.Itoa(int(apiPath))
 }

@@ -36,6 +36,7 @@ type n10nWorkpiece struct {
 	host                     string
 	body                     []byte
 	requestCtx               context.Context
+	logCtx                   context.Context
 	responder                bus.IResponder
 	channelID                in10n.ChannelID
 	channelCleanup           func()

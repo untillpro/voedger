@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/voedger/voedger/pkg/appdef"
@@ -33,6 +34,7 @@ func subscribeAndWatchPipeline(requestCtx context.Context, p *implIN10NProc) pip
 		pipeline.WireFunc("authnzEntities", p.authnzEntities),
 		pipeline.WireFunc("newChannel", p.newChannel),
 		pipeline.WireFunc("subscribe", p.subscribe),
+		pipeline.WireFunc("logSubscribeAndWatchSuccess", logSubscribeAndWatchSuccess),
 		pipeline.WireFunc("initResponse", initResponse),
 		pipeline.WireFunc("sendChannelIDSSEEvent", sendChannelIDSSEEvent),
 		pipeline.WireSyncOperator("channelCleanupOnErr", &channelCleanupOnErr{n10nBroker: p.n10nBroker}),
@@ -130,6 +132,11 @@ func (p *implIN10NProc) authnzEntities(ctx context.Context, n10nWP *n10nWorkpiec
 
 func (p *implIN10NProc) newChannel(ctx context.Context, n10nWP *n10nWorkpiece) (err error) {
 	n10nWP.channelID, n10nWP.channelCleanup, err = p.n10nBroker.NewChannel(n10nWP.subjectLogin, n10nWP.expiresIn)
+	if err == nil {
+		n10nWP.logCtx = logger.WithContextAttrs(n10nWP.logCtx, map[string]any{
+			logAttr_ChannelID: string(n10nWP.channelID),
+		})
+	}
 	return err
 }
 
@@ -154,6 +161,16 @@ func (p *implIN10NProc) subscribe(ctx context.Context, n10nWP *n10nWorkpiece) (e
 		}
 		n10nWP.subscribedProjectionKeys = append(n10nWP.subscribedProjectionKeys, projectionKey)
 	}
+	if len(n10nWP.subscribedProjectionKeys) > 0 {
+		n10nWP.logCtx = logger.WithContextAttrs(n10nWP.logCtx, map[string]any{
+			logAttr_ProjectionKey: in10n.ProjectionKeysToJSON(n10nWP.subscribedProjectionKeys),
+		})
+	}
+	return nil
+}
+
+func logSubscribeAndWatchSuccess(ctx context.Context, n10nWP *n10nWorkpiece) (err error) {
+	logger.VerboseCtx(n10nWP.logCtx, "n10n.subscribe&watch.success")
 	return nil
 }
 
@@ -167,12 +184,14 @@ func (p *implIN10NProc) watchChannel(ctx context.Context, n10nWP *n10nWorkpiece)
 		p.n10nBroker.WatchChannel(watchChannelCtx, n10nWP.channelID, func(projection in10n.ProjectionKey, offset istructs.Offset) {
 			sseMessage := fmt.Sprintf("event: %s\ndata: %d\n\n", projection.ToJSON(), offset)
 			if err := n10nWP.responseWriter.Write(sseMessage); err != nil {
-				// could happen if e.g. router stopped to listen for bus
-				logger.Error("failed to send sse message", sseMessage, ":", err)
-				// force WatchChannel to exit
+				logger.ErrorCtx(n10nWP.logCtx, "n10n.watch.sse_error", err)
 				cancel()
 			}
+			if logger.IsVerbose() {
+				logger.VerboseCtx(n10nWP.logCtx, "n10n.sse_sent", strings.ReplaceAll(sseMessage, "\n", " "))
+			}
 		})
+		logger.VerboseCtx(n10nWP.logCtx, "n10n.watch.done")
 		n10nWP.channelCleanup()
 		n10nWP.responseWriter.Close(nil)
 	}()

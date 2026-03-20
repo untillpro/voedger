@@ -35,6 +35,7 @@ func (p *implIN10NProc) Handle(requestCtx context.Context, args N10NProcArgs) {
 		host:          args.Host,
 		body:          args.Body,
 		requestCtx:    requestCtx,
+		logCtx:        requestCtx,
 		responder:     args.Responder,
 		token:         args.Token,
 		appQName:      args.AppQName,
@@ -62,7 +63,7 @@ func wrapToSysError(err error) error {
 }
 
 func reportError(n10nWP *n10nWorkpiece, err error) {
-	logger.Error(err)
+	logger.ErrorCtx(n10nWP.logCtx, "n10n.error", err)
 	if n10nWP.responseWriter == nil {
 		bus.ReplyErr(n10nWP.responder, err)
 		return

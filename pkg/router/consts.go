@@ -49,6 +49,8 @@ const (
 	hours24                       = 24 * time.Hour
 	DefaultRetryAfterSecondsOn503 = 1
 	logAttrib_Origin              = "origin"
+	logAttrib_ProjectionKey       = "projectionkey"
+	logAttrib_ChannelID           = "channelid"
 )
 
 var (

@@ -20,4 +20,5 @@ const (
 	APIPath_Auth_Login
 	APIPath_Auth_Refresh
 	APIPath_Users
+	APIPath_N10N_SubscribeAndWatch
 )

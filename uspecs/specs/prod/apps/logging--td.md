@@ -308,7 +308,7 @@ API v1 n10n handlers must be updated to call `withLogAttribs()`, matching API v2
 **Component-local attribute keys** (defined as local constants in the n10n processor package, not in `logger/consts.go`):
 
 - `channelid` (string): N10N channel UUID — added to context after channel creation
-- `projectionkey` (string): serialized via `projection.ToJSON()` — added to context only when there is a single projection key
+- `projectionkey` (string): JSON array of all projection keys serialized via `in10n.ProjectionKeysToJSON()` — always added to context when there is at least one projection key
 
 **Errors handling:**
 
@@ -321,23 +321,21 @@ API v1 n10n handlers must be updated to call `withLogAttribs()`, matching API v2
 
 **Subscribe+Watch flow:**
 
-- Adds `projectionkey` attrib only if there is a single projection key to subscribe to
-- Adds `channelid` attrib after channel creation
-- Logs successful `IN10NBroker.SubscribeAndWatch()` call: level `Verbose`, stage `n10n.subscribe&watch.success`
-  - Single projection key → msg is empty
-  - Otherwise → msg `subscriptions=<subscriptions>`
+- Adds `projectionkey` attrib (JSON array of all keys) after subscribe loop; adds `channelid` attrib after channel creation
+- Logs successful `IN10NBroker.SubscribeAndWatch()` call: level `Verbose`, stage `n10n.subscribe&watch.success`, msg empty
 - Logs each SSE message: level `Verbose`, stage `n10n.sse_sent`, msg `<sse message>`
 - Logs error on fail to send SSE message: level `Error`, stage `n10n.watch.sse_error`, msg `<error>`
+- Logs `WatchChannel` goroutine finish: level `Verbose`, stage `n10n.watch.done`, msg (empty) — logged in both APIv1 (`serveN10NChannel`) and APIv2 (`watchChannel` goroutine)
 
-**Subscribe-extra flow:**
+**Subscribe-extra flow (APIv1 `subscribeHandler` and APIv2 `impl_subscribeextra.go`):**
 
-- Adds `projectionkey` attrib to the context
-- Logs successful `IN10NBroker.Subscribe()` call: level `Verbose`, stage `n10n.subscribe.success`
+- Adds `projectionkey` attrib (JSON array of all keys) to context when at least one projection key is present
+- Logs successful `IN10NBroker.Subscribe()` call: level `Verbose`, stage `n10n.subscribe.success`, msg empty
 
-**Unsubscribe flow:**
+**Unsubscribe flow (APIv1 `unSubscribeHandler` and APIv2 `impl_unsubscribe.go`):**
 
-- Adds `projectionkey` attrib to the context
-- Logs successful `IN10NBroker.Unsubscribe()` call: level `Verbose`, stage `n10n.unsubscribe.success`
+- Adds `projectionkey` attrib (JSON array of all keys) to context
+- Logs successful `IN10NBroker.Unsubscribe()` call: level `Verbose`, stage `n10n.unsubscribe.success`, msg empty
 
 **N10N Broker lifecycle (in10nmem):**
 
