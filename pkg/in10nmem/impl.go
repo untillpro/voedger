@@ -16,7 +16,6 @@ package in10nmem
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"sync"
 	"time"
 
@@ -226,18 +225,13 @@ func (nb *N10nBroker) WatchChannel(watchCtx context.Context, channelID in10n.Cha
 		case <-watchCtx.Done():
 			return
 		case <-channel.cchan:
-
-			if logger.IsTrace() {
-				logger.Trace("notified: ", channelID)
-			}
-
 			if watchCtx.Err() != nil {
 				return
 			}
 
 			err := nb.validateChannel(channel)
 			if err != nil {
-				logger.Error(fmt.Sprintf("%s: subjectlogin %s", err.Error(), channel.subject))
+				logger.ErrorCtx(nb.logCtx, "n10n.channel.expired", channel.subject)
 				return
 			}
 
@@ -255,9 +249,6 @@ func (nb *N10nBroker) WatchChannel(watchCtx context.Context, channelID in10n.Cha
 			}
 			nb.Unlock()
 			for _, unit := range updateUnits {
-				if logger.IsTrace() {
-					logTrace("before notifySubscriber", unit.Projection, unit.Offset)
-				}
 				notifySubscriber(unit.Projection, unit.Offset)
 			}
 			updateUnits = updateUnits[:0]
@@ -288,7 +279,11 @@ func (nb *N10nBroker) cleanupChannel(channel *channel, channelID in10n.ChannelID
 		for projectionKey := range clonedSubs {
 			err := nb.Unsubscribe(channelID, projectionKey)
 			if err != nil {
-				logger.Error(fmt.Sprintf("Unsubscribe error: %v for channelID: %v, projectionKey: %v", err.Error(), channelID, projectionKey))
+				errCtx := logger.WithContextAttrs(nb.logCtx, map[string]any{
+					"channelid":     string(channelID),
+					"projectionkey": in10n.ProjectionKeysToJSON([]in10n.ProjectionKey{projectionKey}),
+				})
+				logger.ErrorCtx(errCtx, "n10n.cleanup.error", err.Error())
 			}
 		}
 	}
@@ -300,13 +295,13 @@ func (nb *N10nBroker) cleanupChannel(channel *channel, channelID in10n.ChannelID
 	nb.channelsWG.Done()
 }
 
-func notifier(brokerCtx context.Context, wg *sync.WaitGroup, events chan event) {
+func notifier(brokerCtx context.Context, logCtx context.Context, wg *sync.WaitGroup, events chan event) {
 	defer func() {
-		logger.Info("notifier goroutine stopped")
+		logger.InfoCtx(logCtx, "n10n.notifier.stop")
 		wg.Done()
 	}()
 
-	logger.Info("notifier goroutine started")
+	logger.InfoCtx(logCtx, "n10n.notifier.start")
 
 	for brokerCtx.Err() == nil {
 		select {
@@ -330,17 +325,11 @@ func notifier(brokerCtx context.Context, wg *sync.WaitGroup, events chan event) 
 			}
 
 			// Notify subscribers
-			if logger.IsTrace() {
-				logger.Trace("notifier goroutine: len(prj.subscribedChannels):", strconv.Itoa(len(prj.subscribedChannels)))
-			}
 			for _, ch := range prj.subscribedChannels {
 				// note: ch could be closed\terminated here but still in prj.subscribedChannels
 				// just fail to write to cchan in this case, no problem
 				select {
 				case ch.cchan <- struct{}{}:
-					if logger.IsTrace() {
-						logger.Trace("notifier goroutine: ch.cchan <- struct{}{}")
-					}
 				default:
 					// normally happens when the <-cchan is triggered in WatchChannel but next receiving from cchan is not started yet
 					// i.e. WatchChannel does not read from cchan in the current instant
@@ -375,9 +364,6 @@ func (nb *N10nBroker) Update(projection in10n.ProjectionKey, offset istructs.Off
 
 	e := event{prj: prj}
 	nb.events <- e
-	if logger.IsTrace() {
-		logTrace("Update() completed", projection, offset)
-	}
 }
 
 // MetricNumChannels @ConcurrentAccess
@@ -427,13 +413,13 @@ func (nb *N10nBroker) MetricNumProjectionSubscriptions(projection in10n.Projecti
 // Call Update() every 30 seconds for i10n.Heartbeat30ProjectionKey
 func (nb *N10nBroker) heartbeat30(brokerCtx context.Context, wg *sync.WaitGroup) {
 	defer func() {
-		logger.Info("heartbeat30 goroutine stopped")
+		logger.InfoCtx(nb.logCtx, "n10n.heartbeat.stop")
 		wg.Done()
 	}()
 
 	// [~server.n10n.heartbeats/freq.Interval30Seconds~impl]
 	ticker := nb.time.NewTimerChan(in10n.Heartbeat30Duration)
-	logger.Info("heartbeat30 goroutine started, Heartbeat30Duration:", in10n.Heartbeat30Duration)
+	logger.InfoCtx(nb.logCtx, "n10n.heartbeat.start", "Heartbeat30Duration: ", in10n.Heartbeat30Duration)
 
 	offset := istructs.Offset(1)
 
@@ -442,9 +428,6 @@ func (nb *N10nBroker) heartbeat30(brokerCtx context.Context, wg *sync.WaitGroup)
 		case <-brokerCtx.Done():
 			return
 		case <-ticker:
-			if logger.IsTrace() {
-				logger.Trace("ticker")
-			}
 			nb.Update(in10n.Heartbeat30ProjectionKey, offset)
 			offset++
 			ticker = nb.time.NewTimerChan(in10n.Heartbeat30Duration)

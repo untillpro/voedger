@@ -9,6 +9,7 @@
 package in10nmem
 
 import (
+	"context"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -28,6 +29,7 @@ type N10nBroker struct {
 	numSubscriptions int
 	time             timeu.ITime
 	events           chan event
+	logCtx           context.Context
 }
 
 type event struct {

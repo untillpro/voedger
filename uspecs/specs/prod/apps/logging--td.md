@@ -346,7 +346,7 @@ A dedicated log context is created inside `NewN10nBroker` with `vapp="sys/voedge
 - Heartbeat goroutine started: level `Info`, stage `n10n.heartbeat.start`, msg `Heartbeat30Duration: <duration>`
 - Heartbeat goroutine stopped: level `Info`, stage `n10n.heartbeat.stop`, msg (empty)
 - Channel expired during `WatchChannel`: level `Error`, stage `n10n.channel.expired`, msg `<subjectLogin>`
-- Channel cleanup unsubscribe error: level `Error`, stage `n10n.cleanup.error`, msg `channelID=<id>, projectionKey=<key>: <error>`
+- Channel cleanup unsubscribe error: level `Error`, stage `n10n.cleanup.error`, attribs `channelid=<id>`, `projectionkey=[<key>]`, msg `<error>`
 
 ## Schedulers
 

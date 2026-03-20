@@ -12,12 +12,18 @@ import (
 	"context"
 	"sync"
 
+	"github.com/voedger/voedger/pkg/goutils/logger"
 	"github.com/voedger/voedger/pkg/goutils/timeu"
 	"github.com/voedger/voedger/pkg/in10n"
 	istructs "github.com/voedger/voedger/pkg/istructs"
+	"github.com/voedger/voedger/pkg/sys"
 )
 
 func NewN10nBroker(quotas in10n.Quotas, time timeu.ITime) (nb in10n.IN10nBroker, cleanup func()) {
+	logCtx := logger.WithContextAttrs(context.Background(), map[string]any{
+		logger.LogAttr_VApp:      sys.VApp_SysVoedger,
+		logger.LogAttr_Extension: "sys._N10NBroker",
+	})
 	broker := N10nBroker{
 		projections:     make(map[in10n.ProjectionKey]*projection),
 		channels:        make(map[in10n.ChannelID]*channel),
@@ -26,6 +32,7 @@ func NewN10nBroker(quotas in10n.Quotas, time timeu.ITime) (nb in10n.IN10nBroker,
 		quotas:          quotas,
 		time:            time,
 		events:          make(chan event, eventsChannelSize),
+		logCtx:          logCtx,
 	}
 	brokerCtx, cancel := context.WithCancel(context.Background())
 	wg := sync.WaitGroup{}
@@ -36,7 +43,7 @@ func NewN10nBroker(quotas in10n.Quotas, time timeu.ITime) (nb in10n.IN10nBroker,
 	}
 
 	wg.Add(1)
-	go notifier(brokerCtx, &wg, broker.events)
+	go notifier(brokerCtx, logCtx, &wg, broker.events)
 	wg.Add(1)
 	go broker.heartbeat30(brokerCtx, &wg)
 

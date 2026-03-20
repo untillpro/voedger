@@ -321,20 +321,27 @@
 
 ### N10N broker lifecycle
 
-- [ ] update: [pkg/in10nmem/impl.go](../../../pkg/in10nmem/impl.go)
+- [x] update: [pkg/in10nmem/impl.go](../../../pkg/in10nmem/impl.go)
   - add: Create log context in `NewN10nBroker` with `vapp=sys.VApp_SysVoedger`, `extension="sys._N10NBroker"`
   - update: `notifier` start: level `Info`, stage `n10n.notifier.start`, msg (empty)
   - update: `notifier` stop: level `Info`, stage `n10n.notifier.stop`, msg (empty)
   - update: `heartbeat30` start: level `Info`, stage `n10n.heartbeat.start`, msg `Heartbeat30Duration: <duration>`
   - update: `heartbeat30` stop: level `Info`, stage `n10n.heartbeat.stop`, msg (empty)
   - add: Channel expired during `WatchChannel`: level `Error`, stage `n10n.channel.expired`, msg `<subjectLogin>`
-  - add: Channel cleanup unsubscribe error: level `Error`, stage `n10n.cleanup.error`, msg `channelID=<id>, projectionKey=<key>: <error>`
+  - add: Channel cleanup unsubscribe error: level `Error`, stage `n10n.cleanup.error`, attribs `channelid=<id>`, `projectionkey=[<key>]`, msg `<error>`
   - drop: All `logger.Trace(...)` calls not described in TD (notifier loop, heartbeat loop, WatchChannel, channel management)
+  - drop: `logTrace` helper in `utils.go` (no longer used)
 
-- [ ] update: [pkg/in10nmem/provide.go](../../../pkg/in10nmem/provide.go)
-  - update: Pass log context through `NewN10nBroker` if needed
+- [x] update: [pkg/in10nmem/provide.go](../../../pkg/in10nmem/provide.go)
+  - add: `logCtx` created with `logger.WithContextAttrs` using `vapp=sys.VApp_SysVoedger`, `extension="sys._N10NBroker"`
+  - update: `logCtx` stored on broker struct and passed to `notifier` goroutine
 
-- [ ] Review
+- [x] update: [pkg/in10nmem/types.go](../../../pkg/in10nmem/types.go)
+  - add: `logCtx context.Context` field to `N10nBroker` struct
+
+- [x] drop: [pkg/in10nmem/utils.go](../../../pkg/in10nmem/utils.go) — `logTrace` helper no longer used
+
+- [x] Review
 
 ### Schedulers
 
