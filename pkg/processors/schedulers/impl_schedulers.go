@@ -6,10 +6,12 @@ package schedulers
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/voedger/voedger/pkg/appdef"
 	"github.com/voedger/voedger/pkg/appparts"
+	"github.com/voedger/voedger/pkg/goutils/logger"
 	retrier "github.com/voedger/voedger/pkg/goutils/retry"
 	"github.com/voedger/voedger/pkg/goutils/timeu"
 	"github.com/voedger/voedger/pkg/istructs"
@@ -24,7 +26,7 @@ type schedulers struct {
 	cfg      BasicSchedulerConfig
 	wait     sync.WaitGroup
 	appParts appparts.IAppPartitions
-	
+
 	// Need to fine schedulers control in tests
 	// In tests this time differs from testingu.MockTime and controlled via ISchedulerRunner.SchedulersTime()
 	time timeu.ITime
@@ -48,8 +50,14 @@ func newSchedulers(cfg BasicSchedulerConfig) *schedulers {
 //
 // # apparts.IActualizerRunner.NewAndRun
 func (a *schedulers) NewAndRun(ctx context.Context, app appdef.AppQName, partition istructs.PartitionID, appWSIdx istructs.AppWorkspaceNumber, wsid istructs.WSID, job appdef.QName) {
+	logCtx := logger.WithContextAttrs(ctx, map[string]any{
+		logger.LogAttr_VApp:      app,
+		logger.LogAttr_Extension: fmt.Sprintf("job.%s", job),
+		logger.LogAttr_WSID:      wsid,
+	})
 	act := &scheduler{
-		job: job,
+		job:    job,
+		logCtx: logCtx,
 		conf: SchedulerConfig{
 			BasicSchedulerConfig: a.cfg,
 			AppQName:             app,

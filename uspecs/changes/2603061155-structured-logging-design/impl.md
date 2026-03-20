@@ -345,15 +345,22 @@
 
 ### Schedulers
 
-- [ ] update: [pkg/processors/schedulers/impl_scheduler.go](../../../pkg/processors/schedulers/impl_scheduler.go)
+- [x] update: [pkg/processors/schedulers/impl_scheduler.go](../../../pkg/processors/schedulers/impl_scheduler.go)
+  - add: `logCtx context.Context` field to `scheduler` struct
   - update: `keepRunning` — log (re)schedule: level `Verbose`, stage `job.schedule`, msg `now=<timeNow>,next=<nextRunTime>`
   - update: `keepRunning` — log wake-up: level `Verbose`, stage `job.wake-up`, msg `<timeNow>`
   - update: `runJob` — log successful invoke: level `Verbose`, stage `job.success`, msg (empty)
+  - update: `runJob` defer error — level `Error`, stage `job.error`, msg `<error>`, using `ErrorCtx`
+  - update: `Prepare` retrier OnError — level `Error`, stage `job.error`, using `ErrorCtx`:
+    - if `appparts.ErrNotFound`: msg `appparts <error>, will try again`, retries
+    - otherwise: msg `<error>`, aborts
   - drop: `logger.Info(a.name, "schedule"...)` and `logger.Info(a.name, "wake"...)` calls
   - drop: `logger.Trace(a.name, "started")` in `init`
   - drop: `logger.Trace(a.name + "s finalized")` in `finit`
   - drop: `logger.Verbose("invoked " + a.name)` in `runJob` (replaced by TD-defined `job.success`)
-  - drop: `LogError` callback usage (`a.conf.LogError(...)`) in `Prepare` and `runJob` — not described in TD
-  - update: Use `*Ctx` functions with context containing `vapp` and `extension=job.<job QName>` attribs
+
+- [x] update: [pkg/processors/schedulers/impl_schedulers.go](../../../pkg/processors/schedulers/impl_schedulers.go)
+  - add: `logCtx` created with `logger.WithContextAttrs` using `vapp=app`, `extension="job.<job QName>"`, `wsid=wsid`
+  - update: `logCtx` passed to `scheduler` struct on creation in `NewAndRun`
 
 - [ ] Review

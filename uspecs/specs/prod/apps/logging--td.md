@@ -352,13 +352,17 @@ A dedicated log context is created inside `NewN10nBroker` with `vapp="sys/voedge
 
 **Attributes:**
 
-- `vapp` and `extension` attribs are set on app partition deployment on start new actualizers stage. `extension` is `job.<job QName>`
+- `vapp`, `extension`, and `wsid` attribs are set on app partition deployment on start new actualizers stage. `extension` is `job.<job QName>`, `wsid` is the workspace ID where the job runs
 
 **Job execution:**
 
 - Logs schedule: level `Verbose`, stage `job.schedule`, msg `now=<timeNow>,next=<nextRunTime>`
 - Logs wake-up: level `Verbose`, stage `job.wake-up`, msg `<timeNow>`
 - Logs successful invoke: level `Verbose`, stage `job.success`, msg (empty)
+- Logs invocation error (`runJob` defer): level `Error`, stage `job.error`, msg `<error>`
+- Logs retrier error (`Prepare` OnError):
+  - If `appparts.ErrNotFound`: level `Error`, stage `job.error`, msg `appparts <error>, will try again`
+  - Otherwise: level `Error`, stage `job.error`, msg `<error>`
 
 ---
 
