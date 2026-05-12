@@ -74,6 +74,7 @@ var (
 	QNameTestView                            = appdef.NewQName(app1PkgName, "View")
 	QNameApp1_ViewCategoryIdx                = appdef.NewQName(app1PkgName, "CategoryIdx")
 	QNameApp1_ViewDailyIdx                   = appdef.NewQName(app1PkgName, "DailyIdx")
+	QNameApp1_ViewDailyIdxSmall              = appdef.NewQName(app1PkgName, "DailyIdxSmall")
 	QNameApp1_ViewClients                    = appdef.NewQName(app1PkgName, "Clients")
 	QNameApp1_TestEmailVerificationDoc       = appdef.NewQName(app1PkgName, "Doc")
 	QNameApp1_DocConstraints                 = appdef.NewQName(app1PkgName, "DocConstraints")
@@ -375,19 +376,37 @@ func ProvideApp1(apis builtinapps.APIs, cfg *istructsmem.AppConfigType, ep exten
 					if cud.QName() != QNameApp1_CDocDaily {
 						continue
 					}
+					year, month, day := cud.AsInt32(Field_Year), cud.AsInt32(Field_Month), cud.AsInt32(Field_Day)
+					stringValue := cud.AsString(Field_StringValue)
+					offs := int64(event.WLogOffset()) // nolint G115
+
 					skbViewDailyIdx, err := s.KeyBuilder(sys.Storage_View, QNameApp1_ViewDailyIdx)
 					if err != nil {
 						return err
 					}
-					skbViewDailyIdx.PutInt32(Field_Year, cud.AsInt32(Field_Year))
-					skbViewDailyIdx.PutInt32(Field_Month, cud.AsInt32(Field_Month))
-					skbViewDailyIdx.PutInt32(Field_Day, cud.AsInt32(Field_Day))
+					skbViewDailyIdx.PutInt32(Field_Year, year)
+					skbViewDailyIdx.PutInt32(Field_Month, month)
+					skbViewDailyIdx.PutInt32(Field_Day, day)
 					svbViewDailyIdx, err := intents.NewValue(skbViewDailyIdx)
 					if err != nil {
 						return err
 					}
-					svbViewDailyIdx.PutString(Field_StringValue, cud.AsString(Field_StringValue))
-					svbViewDailyIdx.PutInt64(state.ColOffset, int64(event.WLogOffset())) // nolint G115
+					svbViewDailyIdx.PutString(Field_StringValue, stringValue)
+					svbViewDailyIdx.PutInt64(state.ColOffset, offs)
+
+					skbViewDailyIdxSmall, err := s.KeyBuilder(sys.Storage_View, QNameApp1_ViewDailyIdxSmall)
+					if err != nil {
+						return err
+					}
+					skbViewDailyIdxSmall.PutInt16(Field_Year, int16(year)) //nolint G115
+					skbViewDailyIdxSmall.PutInt8(Field_Month, int8(month)) //nolint G115
+					skbViewDailyIdxSmall.PutInt8(Field_Day, int8(day))     //nolint G115
+					svbViewDailyIdxSmall, err := intents.NewValue(skbViewDailyIdxSmall)
+					if err != nil {
+						return err
+					}
+					svbViewDailyIdxSmall.PutString(Field_StringValue, stringValue)
+					svbViewDailyIdxSmall.PutInt64(state.ColOffset, offs)
 				}
 				return
 			},

@@ -87,20 +87,10 @@ func readViewRecords(ctx context.Context, wsid istructs.WSID, viewRecordQName ap
 		}
 
 		switch f.DataKind() {
-		case appdef.DataKind_int32:
-			fallthrough
-		case appdef.DataKind_int64:
-			fallthrough
-		case appdef.DataKind_float32:
-			fallthrough
-		case appdef.DataKind_float64:
-			fallthrough
-		case appdef.DataKind_RecordID:
-			n := json.Number(string(k.value))
-			kb.PutNumber(k.name, n)
-		case appdef.DataKind_bytes, appdef.DataKind_string:
-			fallthrough
-		case appdef.DataKind_QName:
+		case appdef.DataKind_int8, appdef.DataKind_int16, appdef.DataKind_int32, appdef.DataKind_int64,
+			appdef.DataKind_float32, appdef.DataKind_float64, appdef.DataKind_RecordID:
+			kb.PutNumber(k.name, json.Number(k.value))
+		case appdef.DataKind_bytes, appdef.DataKind_string, appdef.DataKind_QName:
 			kb.PutChars(k.name, string(k.value))
 		default:
 			return errUnsupportedDataKind
