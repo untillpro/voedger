@@ -113,6 +113,12 @@ func (a *asyncActualizer) Run(vvmCtx context.Context) {
 			// i.e. 2nd finit will panic if an error is returned from 2nd init before the place where the pipeline is re-created
 			// see https://untill.atlassian.net/browse/AIR-2302
 			a.pipeline = nil
+
+			// avoiding panic on cleanup of the already terminated n10n channel. Same lifecycle as a.pipeline:
+			// init (NewChannel sets channelCleanup), error, finit (channelCleanup terminates the channel),
+			// init again but error before NewChannel re-assigns channelCleanup, then 2nd finit -> panic in N10nBroker.cleanupChannel ("channel terminated")
+			// see https://untill.atlassian.net/browse/AIR-3888
+			a.channelCleanup = nil
 			return err
 		})
 	}
