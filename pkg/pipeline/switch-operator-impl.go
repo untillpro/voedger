@@ -7,9 +7,8 @@ package pipeline
 import "context"
 
 type switchOperator struct {
-	switchLogic       ISwitch
-	branches          map[string]ISyncOperator
-	currentBranchName string
+	switchLogic ISwitch
+	branches    map[string]ISyncOperator
 }
 
 func (s switchOperator) Close() {
@@ -19,11 +18,11 @@ func (s switchOperator) Close() {
 }
 
 func (s switchOperator) DoSync(ctx context.Context, work IWorkpiece) (err error) {
-	s.currentBranchName, err = s.switchLogic.Switch(work)
+	branchName, err := s.switchLogic.Switch(work)
 	if err != nil {
 		return err
 	}
-	return s.branches[s.currentBranchName].DoSync(ctx, work)
+	return s.branches[branchName].DoSync(ctx, work)
 }
 
 type SwitchOperatorOptionFunc func(*switchOperator)

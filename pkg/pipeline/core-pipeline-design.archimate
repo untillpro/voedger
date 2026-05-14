@@ -28,7 +28,6 @@
 }</documentation>
         </element>
         <element xsi:type="archimate:TechnologyProcess" name="Prepare()" id="id-4add19a34e4842628fe304a679012f81"/>
-        <element xsi:type="archimate:Artifact" name="currentBranchName" id="id-33726952f34b42578b3b1c05b8e61066"/>
         <element xsi:type="archimate:TechnologyProcess" name="DoSync()" id="id-a27fb3fea5334503a8f599034f5ba086"/>
       </folder>
       <folder name="fork" id="id-df95a09936e642cfbd944f727f7c09da">
@@ -513,10 +512,8 @@ type ISyncOperator interface {&#xD;
     <element xsi:type="archimate:AggregationRelationship" id="id-935d53635b02454e8c33d822097307f7" source="id-c065de82b62a42fea6fe782adcf23dd5" target="id-50692ee038334ea081580219316fc0a5"/>
     <element xsi:type="archimate:CompositionRelationship" id="id-369fa78d98704721859aecf9775d76ff" source="id-c065de82b62a42fea6fe782adcf23dd5" target="id-4add19a34e4842628fe304a679012f81"/>
     <element xsi:type="archimate:ServingRelationship" name="work -> Branch name" id="id-5f1c0460302648e79fd18a2bb3c9bb8d" source="id-a963419bce3f4f5ab4bfcf321a9be7ba" target="id-4add19a34e4842628fe304a679012f81"/>
-    <element xsi:type="archimate:AccessRelationship" id="id-06300c39cf314c12939f967059cdfccb" source="id-4add19a34e4842628fe304a679012f81" target="id-33726952f34b42578b3b1c05b8e61066"/>
     <element xsi:type="archimate:CompositionRelationship" id="id-3f8284e91b5f44feb7a4be15404bdd53" source="id-c065de82b62a42fea6fe782adcf23dd5" target="id-a27fb3fea5334503a8f599034f5ba086"/>
     <element xsi:type="archimate:TriggeringRelationship" id="id-e7cdc7f3a1c74e729b74cae4acef6a90" source="id-a27fb3fea5334503a8f599034f5ba086" target="id-c6c917aa2fa24c00aff064bfa7b91d43"/>
-    <element xsi:type="archimate:AccessRelationship" id="id-57f12511bb8a47678576c72b43bf4c6a" source="id-a27fb3fea5334503a8f599034f5ba086" target="id-33726952f34b42578b3b1c05b8e61066" accessType="1"/>
     <element xsi:type="archimate:TriggeringRelationship" id="id-af42794c311a41639951961b725b1094" source="id-b0152cdac9744a0d887e735557b03be3" target="id-73f004a40e6b49f687798331d57e5c0d"/>
     <element xsi:type="archimate:CompositionRelationship" id="id-f1db45648ff34fb5858fd243db3e3bfb" source="id-89f7bfd15d12483db60e498a3f3250e5" target="id-b0152cdac9744a0d887e735557b03be3"/>
     <element xsi:type="archimate:RealizationRelationship" id="id-ef803c07caee4230ba539ef6a12775f5" source="id-811e0b8652e94bd0be63b6727aaab984" target="id-a3ea51c35b5941bda12ad89b592cc86a"/>
@@ -560,15 +557,10 @@ type ISyncOperator interface {&#xD;
         </child>
         <child xsi:type="archimate:DiagramObject" id="id-20b5dfb50b9046e7ac4dac7c037ecd99" targetConnections="id-0c986e511adf41b8b2d18c2441a079e2 id-9f1e979f3dd54f079e875aae03ecbf26" archimateElement="id-4add19a34e4842628fe304a679012f81">
           <bounds x="720" y="276" width="157" height="55"/>
-          <sourceConnection xsi:type="archimate:Connection" id="id-84468e0be1c047519b7e1907459959ab" source="id-20b5dfb50b9046e7ac4dac7c037ecd99" target="id-7526c79a684c43599346ba1436339486" archimateRelationship="id-06300c39cf314c12939f967059cdfccb"/>
-        </child>
-        <child xsi:type="archimate:DiagramObject" id="id-7526c79a684c43599346ba1436339486" targetConnections="id-84468e0be1c047519b7e1907459959ab id-1110ff6c31c543b1a5b4468e389115f5" archimateElement="id-33726952f34b42578b3b1c05b8e61066">
-          <bounds x="720" y="420" width="157" height="55"/>
         </child>
         <child xsi:type="archimate:DiagramObject" id="id-14c30f44c3374d55b779e3f6b7f1314c" targetConnections="id-36e1ce130b7c4321a2e37575e6f0c5e0" archimateElement="id-a27fb3fea5334503a8f599034f5ba086">
           <bounds x="504" y="276" width="145" height="55"/>
           <sourceConnection xsi:type="archimate:Connection" id="id-ccaeed325ffb4e369fe1457a25052ce0" source="id-14c30f44c3374d55b779e3f6b7f1314c" target="id-a0cde9c79b924e39a90a08ce720cb254" archimateRelationship="id-e7cdc7f3a1c74e729b74cae4acef6a90"/>
-          <sourceConnection xsi:type="archimate:Connection" id="id-1110ff6c31c543b1a5b4468e389115f5" source="id-14c30f44c3374d55b779e3f6b7f1314c" target="id-7526c79a684c43599346ba1436339486" archimateRelationship="id-57f12511bb8a47678576c72b43bf4c6a"/>
         </child>
       </element>
       <element xsi:type="archimate:ArchimateDiagramModel" name="ForkOperator" id="id-94589d88f8e74625bf09e859a5324cb8">
