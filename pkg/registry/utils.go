@@ -15,6 +15,7 @@ import (
 
 	"github.com/voedger/voedger/pkg/appdef"
 	"github.com/voedger/voedger/pkg/coreutils"
+	"github.com/voedger/voedger/pkg/goutils/logger"
 	"github.com/voedger/voedger/pkg/istructs"
 	"github.com/voedger/voedger/pkg/sys"
 )
@@ -60,7 +61,14 @@ func GetCDocLogin(login string, st istructs.IState, appWSID istructs.WSID, appNa
 	}
 	kb.PutRecordID(sys.Storage_Record_Field_ID, cdocLoginID)
 	cdocLogin, err = st.MustExist(kb)
-	return cdocLogin, err == nil, err
+	if err != nil {
+		return nil, false, err
+	}
+	if !cdocLogin.AsBool(appdef.SystemField_IsActive) {
+		logger.Verbose("cdoc.registry.Login", cdocLoginID, "is deactivated, treating as missing login")
+		return nil, false, nil
+	}
+	return cdocLogin, true, nil
 }
 
 func GetLoginHash(login string) string {

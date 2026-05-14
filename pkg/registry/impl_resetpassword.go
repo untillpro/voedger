@@ -17,7 +17,6 @@ import (
 	"github.com/voedger/voedger/pkg/istructsmem"
 	"github.com/voedger/voedger/pkg/itokens"
 	payloads "github.com/voedger/voedger/pkg/itokens-payloads"
-	"github.com/voedger/voedger/pkg/sys"
 	"github.com/voedger/voedger/pkg/sys/authnz"
 )
 
@@ -57,25 +56,16 @@ func provideQryInitiateResetPasswordByEmailExec(itokens itokens.ITokens, federat
 			return coreutils.NewHTTPError(http.StatusBadRequest, err)
 		}
 
-		cdocLoginID, err := GetCDocLoginID(args.State, args.WSID, loginAppStr, login)
+		cdocLogin, loginExists, err := GetCDocLogin(login, args.State, args.WSID, loginAppStr)
 		if err != nil {
 			return err
 		}
-		if cdocLoginID == 0 {
+		if !loginExists {
 			return coreutils.NewHTTPErrorf(http.StatusBadRequest, "login does not exist")
 		}
 
 		// check CDoc<registry.Login>.WSID != 0
-		kb, err := args.State.KeyBuilder(sys.Storage_Record, QNameCDocLogin)
-		if err != nil {
-			return err
-		}
-		kb.PutRecordID(sys.Storage_Record_Field_ID, cdocLoginID)
-		sv, err := args.State.MustExist(kb)
-		if err != nil {
-			return err
-		}
-		profileWSID := sv.AsInt64(authnz.Field_WSID)
+		profileWSID := cdocLogin.AsInt64(authnz.Field_WSID)
 		if profileWSID == 0 {
 			return coreutils.NewHTTPErrorf(http.StatusLocked, "login profile is not initialized")
 		}

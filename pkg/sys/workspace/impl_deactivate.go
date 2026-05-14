@@ -198,12 +198,21 @@ func projectorApplyDeactivateWorkspace(federation federation.IFederation, tokens
 		ownerWSID := wsDesc.AsInt64(Field_OwnerWSID)
 		ownerID := wsDesc.AsInt64(Field_OwnerID)
 
-		appQName := s.App()
+		projectorAppQName := s.App()
+		ownerAppQName := appdef.MustParseAppQName(ownerApp) // WorkspaceDescriptor.OwnerApp is checked already
 
-		sysToken, err := payloads.GetSystemPrincipalToken(tokensAPI, appQName)
+		projectorAppToken, err := payloads.GetSystemPrincipalToken(tokensAPI, projectorAppQName)
 		if err != nil {
 			// notest
 			return err
+		}
+
+		ownerAppToken := projectorAppToken
+		if ownerAppQName != projectorAppQName {
+			if ownerAppToken, err = payloads.GetSystemPrincipalToken(tokensAPI, ownerAppQName); err != nil {
+				// notest
+				return fmt.Errorf("failed to issue system token for ownerApp %s: %w", ownerAppQName, err)
+			}
 		}
 
 		// Foreach cdoc.sys.Subject
@@ -223,9 +232,9 @@ func projectorApplyDeactivateWorkspace(federation federation.IFederation, tokens
 
 			// app is always current
 			// impossible to have logins from different apps among subjects (Michael said)
-			url := fmt.Sprintf(`api/%s/%d/c.sys.OnJoinedWorkspaceDeactivated`, appQName, profileWSID)
+			url := fmt.Sprintf(`api/%s/%d/c.sys.OnJoinedWorkspaceDeactivated`, projectorAppQName, profileWSID)
 			body := fmt.Sprintf(`{"args":{"InvitedToWSID":%d}}`, event.Workspace())
-			_, err = federation.Func(url, body, httpu.WithAuthorizeBy(sysToken), httpu.WithDiscardResponse())
+			_, err = federation.Func(url, body, httpu.WithAuthorizeBy(projectorAppToken), httpu.WithDiscardResponse())
 			return err
 		})
 		if err != nil {
@@ -238,21 +247,21 @@ func projectorApplyDeactivateWorkspace(federation federation.IFederation, tokens
 		body := fmt.Sprintf(`{"args":{"OwnerWSID":%d, "WSName":%q}}`, ownerWSID, wsName)
 		cdocWorkspaceIDWSID := coreutils.GetPseudoWSID(istructs.WSID(ownerWSID), wsName, event.Workspace().ClusterID()) // nolint G115
 		if _, err := federation.Func(fmt.Sprintf("api/%s/%d/c.sys.OnWorkspaceDeactivated", ownerApp, cdocWorkspaceIDWSID), body,
-			httpu.WithDiscardResponse(), httpu.WithAuthorizeBy(sysToken)); err != nil {
+			httpu.WithDiscardResponse(), httpu.WithAuthorizeBy(ownerAppToken)); err != nil {
 			return fmt.Errorf("c.sys.OnWorkspaceDeactivated failed: %w", err)
 		}
 
 		// c.sys.OnChildWorkspaceDeactivated(ownerID))
 		body = fmt.Sprintf(`{"args":{"OwnerID":%d}}`, ownerID)
 		if _, err := federation.Func(fmt.Sprintf("api/%s/%d/c.sys.OnChildWorkspaceDeactivated", ownerApp, ownerWSID), body,
-			httpu.WithDiscardResponse(), httpu.WithAuthorizeBy(sysToken)); err != nil {
+			httpu.WithDiscardResponse(), httpu.WithAuthorizeBy(ownerAppToken)); err != nil {
 			return fmt.Errorf("c.sys.OnChildWorkspaceDeactivated failed: %w", err)
 		}
 
 		// cdoc.sys.WorkspaceDescriptor.Status = Inactive
 		body = fmt.Sprintf(`{"cuds":[{"sys.ID":%d,"fields":{"Status":%d}}]}`, wsDesc.AsRecordID(appdef.SystemField_ID), authnz.WorkspaceStatus_Inactive)
-		if _, err := federation.Func(fmt.Sprintf("api/%s/%d/c.sys.CUD", appQName, event.Workspace()), body,
-			httpu.WithDiscardResponse(), httpu.WithAuthorizeBy(sysToken)); err != nil {
+		if _, err := federation.Func(fmt.Sprintf("api/%s/%d/c.sys.CUD", projectorAppQName, event.Workspace()), body,
+			httpu.WithDiscardResponse(), httpu.WithAuthorizeBy(projectorAppToken)); err != nil {
 			return fmt.Errorf("cdoc.sys.WorkspaceDescriptor.Status=Inactive failed: %w", err)
 		}
 

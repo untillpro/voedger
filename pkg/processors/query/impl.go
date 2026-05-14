@@ -278,7 +278,10 @@ func newQueryProcessorPipeline(requestCtx context.Context, authn iauthnz.IAuthen
 				return nil
 			}
 			err = coreutils.JSONUnmarshal(qw.msg.Body(), &qw.requestData)
-			return coreutils.WrapSysError(err, http.StatusBadRequest)
+			if err != nil {
+				return coreutils.NewHTTPErrorf(http.StatusBadRequest, fmt.Errorf("failed to unmarshal request body: %w", err))
+			}
+			return nil
 		}),
 		operator("check unexpected request body fields", func(_ context.Context, qw *queryWork) error {
 			var unexpected []string
